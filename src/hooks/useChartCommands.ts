@@ -31,6 +31,7 @@ export function useChartCommands(options: ChartCommandsOptions): void {
   // 画线工具/磁吸同步
   const activeTool = useDrawingStore((s) => s.activeTool);
   const magnet = useDrawingStore((s) => s.magnet);
+  const magnetMode = useDrawingStore((s) => s.magnetMode);
 
   // 指标同步：store 为意图源，renderer 为实例源（按 id 对齐，增删与全量选项下发）
   const activeIndicators = useIndicatorStore((s) => s.active);
@@ -71,6 +72,10 @@ export function useChartCommands(options: ChartCommandsOptions): void {
   useEffect(() => {
     rendererRef.current?.setMagnet(magnet);
   }, [rendererRef, magnet]);
+
+  useEffect(() => {
+    rendererRef.current?.setMagnetMode(magnetMode);
+  }, [rendererRef, magnetMode]);
 
   useEffect(() => {
     const renderer = rendererRef.current;
