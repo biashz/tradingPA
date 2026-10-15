@@ -170,12 +170,12 @@ npm run test:e2e
 | [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) | 开发计划与 1:1 对照清单（§3 为功能验收基线） |
 | [docs/PLAN-PHASE2.md](docs/PLAN-PHASE2.md) | 二期七批次规格与交付记录；§3 二期「明确不做」清单、§5 决策点 D1/D2/D3 裁决（D1 不引入后端） |
 | [docs/PLAN-PHASE3.md](docs/PLAN-PHASE3.md) | **三期规划（2026-10-12 三个决策点全部裁决完毕）**：批次 A–H 的范围/出处/人日，§3 明确不做结转 + 能力边界转正表，§4 裁决留档（D1 档 0 关闭重评 / D4 MTF 不做 / D6 收敛）；**三期-A 已交付**（§2-A），**三期-H 已交付**（§2-H 门禁盲区清偿），**三期-B0 已交付**（§2-B：设置态单一来源 + 偏好落盘），**三期-B1 已交付**（§2-B：图表设置「模板」页 + 模板 store，事件页撤项）；**三期-B2 已交付**（§2-B：「交易」页 + `tradeSettingsStore` 六处硬编码收口）；**三期-B3 已交付**（§2-B：「一般」页显示时区 + 引擎 additive `TimeDisplay` 链，**TV 对照的页级缺口清零**）；**三期-B4 已交付**（§2-B：四项待裁决的落实批——「警报」页补提示音入口，对话框现为 **9 页**；`chunkSizeWarningLimit = 560` 预算登记；交易偏好不入模板快照；`retries` 归零）；**三期-C1 已交付**（§2-C：画线右键「复制 / 粘贴 / 锁定」+ 应用内内存剪贴板，顺带修掉锁定对象在画布上无法右键解锁的单向门）；**三期全部批次已交付并收口（§5「三期收口判据」2026-10-15 满足，含同日 E/F 重排批）** |
-| [docs/PLAN-PHASE4.md](docs/PLAN-PHASE4.md) | **四期规划（2026-10-15 取证 + 同日 D7/D10 裁决，开工中）**：§1 本轮重新查阅的四个结论——两份 AUDIT 抽验 15 行里 13 行整行已交付（排期基线失真）、真缺口集中在「多图表是演示态」这一主题（6 条带行号证据）、其余为分散的复刻精度长尾、两处「已知边界」登记已不成立应就地勘正；§2 批次 A（审计勘正 + gzip 口径脚本化）/ B（多图表真实化，8–11 人日，**D7 裁为本期不排、整批封存**，证据留档）/ C（精度长尾 4–6 人日）/ D（内容长尾，待 D9）/ E（E1 回放中画线验证 + E2 手续费/滑点真模型，**D10 裁为做**）；§3 结转三期「明确不做」7 条与能力边界 5 条；§4 D7/D10 已 RESOLVED、D8（触发条件未成立）/D9 仍 OPEN；§5 排期 **A → E1 → C → E2**（6.5–10 人日） |
+| [docs/PLAN-PHASE4.md](docs/PLAN-PHASE4.md) | **四期规划（2026-10-15 取证 + 同日 D7/D10 裁决，开工中）**：§1 本轮重新查阅的四个结论——两份 AUDIT 抽验 15 行主差距全部已交付、其中 11 行整行闭合 4 行只剩余项（排期基线失真，A1 已就地标注勘正）、真缺口集中在「多图表是演示态」这一主题（6 条带行号证据）、其余为分散的复刻精度长尾、两处「已知边界」登记已不成立应就地勘正；§2 批次 A（审计勘正 + gzip 口径脚本化）/ B（多图表真实化，8–11 人日，**D7 裁为本期不排、整批封存**，证据留档）/ C（精度长尾 4–6 人日）/ D（内容长尾，待 D9）/ E（E1 回放中画线验证 + E2 手续费/滑点真模型，**D10 裁为做**）；§3 结转三期「明确不做」7 条与能力边界 5 条；§4 D7/D10 已 RESOLVED、D8（触发条件未成立）/D9 仍 OPEN；§5 排期 **A → E1 → C → E2**（6.5–10 人日） |
 | [docs/SPEC-TV-ALIGNMENT.md](docs/SPEC-TV-ALIGNMENT.md) | TV 对齐 v2.0 主规格；**§12 变更记录 = 项目决策登记表** |
 | [docs/SPEC-PHASE1-FEATURE-BREADTH.md](docs/SPEC-PHASE1-FEATURE-BREADTH.md) | 一期「功能广度」批次（原 `SPEC-P1`）规格与交付记录 |
 | [docs/SPEC-PHASE1-CLOSEOUT.md](docs/SPEC-PHASE1-CLOSEOUT.md) | 一期「收官」批次（原 `SPEC-P2`）规格与交付记录 |
-| [docs/AUDIT-TV-FEATURE-GAP.md](docs/AUDIT-TV-FEATURE-GAP.md) | 功能维度差距分析（TV × tradingPA，P0/P1/P2 池的来源） |
-| [docs/AUDIT-TV-UI-GAP.md](docs/AUDIT-TV-UI-GAP.md) | UI / 交互像素维度差距分析（设置对话框深度、右键菜单广度、token 收敛等缺口的登记处） |
+| [docs/AUDIT-TV-FEATURE-GAP.md](docs/AUDIT-TV-FEATURE-GAP.md) | 功能维度差距分析（TV × tradingPA，P0/P1/P2 池的来源）；**〔2026-10-15 四期-A1〕** 已就地加「复核」标注 2 行（Volume Profile、回放档位），未标注行=本轮未复核 |
+| [docs/AUDIT-TV-UI-GAP.md](docs/AUDIT-TV-UI-GAP.md) | UI / 交互像素维度差距分析（设置对话框深度、右键菜单广度、token 收敛等缺口的登记处）；**〔2026-10-15 四期-A1〕** §1 主表（39 行）已就地加「复核」标注 15 行并附现行 `路径:行号`，原文单元格未改写；未标注行=本轮未复核 |
 | [docs/AUDIT-ARCHITECTURE-REFACTOR.md](docs/AUDIT-ARCHITECTURE-REFACTOR.md) | 技术改造点与架构风险评估（只读分析，M0-M7 收尾期） |
 | [docs/DESIGN-VOLUME-PROFILE.md](docs/DESIGN-VOLUME-PROFILE.md) | Volume Profile 数据管线与集成架构设计（配套 ADR-001） |
 | [docs/PLAN-TECH-DEBT-CLOSEOUT.md](docs/PLAN-TECH-DEBT-CLOSEOUT.md) | 技术债收尾施工蓝图（历史存档，2026-09-30 已全部交付） |

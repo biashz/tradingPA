@@ -15,27 +15,30 @@
 
 ## 1. 本轮重新查阅的四个结论
 
-### 1.1 结论一：两份审计表的 P1/P2 行大面积过期——**抽验 15 行，13 行整行已交付、2 行只剩小尾巴**
+### 1.1 结论一：两份审计表的 P1/P2 行大面积过期——**抽验 15 行（14 行 UI 表 + 1 行 FEATURE 表），主差距 15 行全部已交付，其中 11 行整行闭合、4 行只剩余项**
 
-这不是坏消息，而是**排期基线失真**：如果照审计表排四期，会把 13 件已完成的事重新排一遍。逐条核实结果：
+这不是坏消息，而是**排期基线失真**：如果照审计表排四期，会把这 11 件已完成的事重新排一遍。逐条核实结果（**A1 交付时把计数从首版「13 已交付 / 2 小尾巴」订正为上式**：首版漏了「图表右键·警报模型」一行，且把「阴影 1 处硬编码残留」与「快捷键 P2 半」两条余项折进了「已交付」而不单列）：
 
-| 审计行 | 原差距（`AUDIT-TV-UI-GAP`） | 现状（本轮实读出处） | 判定 |
+> **行号口径（四期-A1 交付后就地订正）**：本表原以 `AUDIT-TV-UI-GAP.md` 的**物理行号**（`:24`、`:25`…）标识审计行。A1 在表内追加复核标注后那些行号整体位移，照抄即成指错——现全部改为**行标签**（「UI 区域」列名，稳定标识）。原物理行号属 2026-09-28 版快照，只在标注历史里出现，不再作为引用。
+> 另有一处**取证自身的勘正**：本轮 §1.1 首版把图表右键菜单记为「12 项，差 2 项属 TV 独有子菜单」，A1 逐项清点后实为 **12/14，仍缺 4 项**（见下表该行与审计文档的复核标注）；`ChartContextMenu.tsx` 的项位行号首版亦有一处偏移（`:133/:147/:164/…`），已按 A1 实读值（`:132/:146/:163/…`）订正。**这是本轮第二条「先写后核」被抓出的例子**（第一条是 §1.2 的行号随批次位移），印证规划纪律「任何条目未经行号核实不写入本文」。
+
+| 审计行（UI 区域） | 原差距（`AUDIT-TV-UI-GAP`） | 现状（A1 复核实读出处） | 判定 |
 |---|---|---|---|
-| :24 十字光标价格标签 `9999` 魔数 | 应改面板高度钳制 | `crosshairOverlay.ts:48` `maxY: paneY + paneHeight - 18` | **已交付** |
-| :25 **悬停副图时价格标签用主轴刻度（P1 功能错误）** | 需按命中面板传对应 priceScale | `RenderPipeline.ts:221-232` 传 `hoveredPane.priceScale` + `hoveredPane.y` | **已交付** |
-| :26 时间标签右边界无钳制 | 溢出画布 | `crosshairOverlay.ts:57` `maxX` + `:86` `Math.min(bx, bounds.maxX - w)` | **已交付** |
-| :29 图例市场状态圆点 | 无开闭市圆点 | `drawLegend.ts:62-63`（圆点）+ `RenderPipeline.ts:241`（`isMarketOpen` 每帧算）+ `marketHours.ts:41-47` | **已交付**（该行的「日涨跌」另一半仍缺，见 §1.3） |
-| :30 价格轴标签左对齐贴分隔线（**P1**） | TV 右对齐贴轴右缘 | `drawAxes.ts:89`、`:217` `textAlign = pos === 'left' ? 'left' : 'right'` | **已交付** |
-| :36 图表右键菜单仅 5 项（**P1**） | 缺 9 项 | `ChartContextMenu.tsx:111,118,125,133,147,164,177,189,200,210,221,230` 共 12 项 | **已交付**（差 2 项属 TV 独有子菜单，见 §1.3） |
-| :37 右键警报无对话框（**P1**） | 直接建两条警报 | `ChartContextMenu.tsx:251-322` 价格预填 + 条件选择的警报对话框 | **已交付** |
-| :41 无快捷键面板（**P1**） | 散落无出处 | `src/features/settings/ShortcutsDialog.tsx` 存在（132 行处有用例样式） | **已交付** |
-| :42 缺 Alt+A/R/L/P/W（**P1**） | 高频快捷键缺 | `useTvShortcuts.ts:123-151`：a / w / n / r / l / p / s / d / g / Enter 全覆盖 | **已交付** |
-| :45 对话框无动效 | Radix 默认无动画 | `global.css:60-62` `.tv-dialog[data-state='closed']` + 对应 open 关键帧 | **已交付** |
-| :50 首次加载画布全空白（**P1**） | 无任何反馈 | `ChartWorkspace.tsx:232`（`idle/loading/reconnecting` 三态覆盖层） | **已交付** |
-| :52 无全局 Toast | `zIndex.toast` 预留但无组件 | `src/features/ui/Toast.tsx` + `toastModel.ts`，消费点 `ChartContextMenu.tsx:81,152,289` | **已交付** |
-| :57 阴影仅一个 token（**P1**） | 需 flat/ring/raised | `tokens.ts:67-76` 四档（tooltip/popover/menu/modal）；残留硬编码仅 **1 处** `ChartOrderMenu.tsx:148`（值与 `shadow.menu` 逐字相同） | **已交付**（残留归 §2-C4 的微项） |
-| :60 底栏缺预设条/齿轮/导航（**P1**） | 仅 UTC + 三个开关 | `StatusBar.tsx:34-42` `RANGES` 八档预设条、`:26-29` control_bar 导航组、`:22` 底部齿轮 | **已交付** |
-| `AUDIT-TV-FEATURE-GAP`:84 Session VP 时间分段 | 无 | `volumeProfile.ts:18,55` `mode: 'range' \| 'session'` + `PaneRenderer.ts:122` 分发 | **已交付**（二期-G） |
+| 十字光标·价格标签 `9999` 魔数 | 应改面板高度钳制 | `crosshairOverlay.ts:48` `maxY: paneY + paneHeight - 18`；`src/engine/renderer/*.ts` 内 `9999` **grep 零命中**。⚠️ 勘正：`drawCrosshair.ts` **仍在**，但已只剩再导出壳（`export { drawCrosshair } from './crosshairOverlay'` + `drawLegend` / `legendTypes`），本表原引的 `:91/:120-165/:209-247/:255-280` 等实现行号随实现迁走而失效 | **已交付** |
+| 十字光标·多面板 **悬停副图时价格标签用主轴刻度（P1 功能错误）** | 需按命中面板传对应 priceScale | `RenderPipeline.ts:195` 求 `hoveredPane` + `:225/:228/:229` 传其 `priceScale` / `y` / `height` | **已交付** |
+| 十字光标·时间标签右边界无钳制 | 溢出画布 | `crosshairOverlay.ts:57` `maxX` + `:86` `Math.min(bx, bounds.maxX - w)` | **已交付** |
+| 图例·状态点/日涨跌 市场状态圆点 | 无开闭市圆点 | `drawLegend.ts:62-63`（圆点）+ `RenderPipeline.ts:241`（`isMarketOpen` 每帧算）+ `marketHours.ts:41-47`（浏览器本地时区口径，偏差已入 SPEC §9） | **已交付**（该行的「日涨跌」另一半仍缺，见 §1.3） |
+| 价格轴·标签对齐 左对齐贴分隔线（**P1**） | TV 右对齐贴轴右缘 | `drawAxes.ts:89`、`:217` `textAlign = pos === 'left' ? 'left' : 'right'` | **已交付** |
+| 图表右键菜单 仅 5 项（**P1**） | 缺 9 项 | `ChartContextMenu.tsx:111,118,125,132,146,163,176,188,199,209,220,230` 共 12 项 | **已交付**（相对 TV 14 项**仍缺 4 项**：粘贴 / Trade / Watchlist 子菜单+Create new list… / 按时间锁定垂直光标；后者全仓 grep 零命中，本轮未排期） |
+| 图表右键·警报模型 右键警报无对话框（**P1**） | 直接建两条警报 | `ChartContextMenu.tsx:252` 起接 `ChartAlertDialog`（价格预填 + 条件选择） | **已交付** |
+| 快捷键面板 无（**P1**） | 散落无出处 | `src/features/settings/ShortcutsDialog.tsx` | **已交付** |
+| 快捷键覆盖 缺 Alt+A/R/L/P/W（**P1**） | 高频快捷键缺 | `useTvShortcuts.ts:123/126/132/135/138/150`（a / w / r / l / p / Enter），另有 n、s、d、g | **已交付**（`Ctrl+Alt+H`、`Alt+C`、`Alt+I`、数字键切周期、字母键切品种仍不在该 handler，属 P2 半） |
+| 对话框动效 无 | Radix 默认无动画 | `src/styles/global.css:58` 进入 `tv-dialog-in 150ms ease-out` + `:60` `[data-state='closed']` 150ms 退出 | **已交付** |
+| 加载状态 首次加载画布全空白（**P1**） | 无任何反馈 | `ChartWorkspace.tsx:232`（`idle/loading/reconnecting` 三态覆盖层）、文案 `:240` | **已交付** |
+| Toast 反馈 无全局 Toast（**P2**） | `zIndex.toast` 预留但无组件 | `src/features/ui/Toast.tsx` + `toastModel.ts`，消费点 `ChartContextMenu.tsx:81,152,289` | **已交付** |
+| 阴影 Token 仅一个（**P1**） | 需 flat/ring/raised | `tokens.ts:67-76` 按用途四档（tooltip/popover/menu/modal，非 TV 三名）；残留硬编码仅 **1 处** `ChartOrderMenu.tsx:148`（与 `shadow.menu` 逐字相同） | **已交付**（残留归 §2-C4 的微项） |
+| 底部面板 缺预设条/齿轮/导航（**P1**） | 仅 UTC + 三个开关 | `StatusBar.tsx:34-42` `RANGES` 八档、`:26-30` control_bar 导航组、`:22` 底部齿轮、`:45` 起时区标 | **已交付**（「前往日期」在右键菜单 `ChartContextMenu.tsx:118` 与顶栏，原列为底栏缺口属位置误记） |
+| Volume Profile（`AUDIT-TV-FEATURE-GAP` §1 行） Session VP 时间分段 | 无 | `volumeProfile.ts:18/:55/:223` `mode: 'range' \| 'session'` + `PaneRenderer.ts:122` 分发 | **已交付**（二期-G） |
 
 ⇒ 由此产生 **四期-A**（纯文档 + 一处脚本）：**把过期行就地标注**，让后续任何重排不再基于失真基线。这与三期-A 对 `SPEC-PHASE1-FEATURE-BREADTH` 的处置同一口径（**加标注、不改写历史**）。
 
@@ -58,20 +61,20 @@
 
 ### 1.3 结论三：其余缺口是分散的复刻精度长尾（每条都小，合计不小）
 
-| 审计行 | 差距 | 现状出处 | 量级 |
+| 审计行（UI 区域） | 差距 | 现状出处 | 量级 |
 |---|---|---|---|
-| UI:29 后半 | 图例涨跌是**单根** `close-open`（`drawLegend.ts:84-96`），非日内周期的「最后一日变化值」；底栏有 `dayChangePct`（`StatusBar.tsx:12`、渲染分支 `:113-117`）而图例无 | 两处口径并存 | 0.5 |
-| UI:31 | 价格轴固定宽（`AXIS_WIDTH = 64`，`chartPanes.ts:6`），长价/低价数字余量不均 | 三期-B5 只收敛了魔数，自适应未做 | 1 |
-| UI:33 | 刻度密度固定 6 条（`drawAxes.ts:29,93`；`PriceScale.ts:112` `ticks(targetCount = 6)`），不随面板高度变 | 面板高度已可得（`pane.height`） | 0.5 |
-| UI:35 | 价格轴无「+」快捷入口：轴区唯一命中件是「自动」按钮（`PaneRenderer.ts:192-210` 绘、`PanZoomGesture.ts:106` 命中） | 需引擎 additive 命中件 + 回调 | 1 |
-| UI:40 | 画线右键缺「设为默认」——全仓 `设为默认\|setAsDefault` **0 命中** | `DrawingContextMenu.tsx` 现有设置/复制/粘贴/锁定/克隆/移除/视觉顺序 | 0.5 |
-| UI:47 | flyout 展开时主按钮不高亮：`DrawingToolButton.tsx:59` 底色三元只看 `active`/`hovered`，`open` 只用于 caret（`:71,75,100`） | 一行表达式 | 0.25 |
-| UI:48 | `IconButton`（`primitives.tsx:112-142`）props 仅 `active/onClick/title/children`，**无 disabled/loading** | 顶栏按钮态缺两态 | 0.5 |
-| UI:59 | 原生 `<select>` 仍 **7 处**（`ChartCell.tsx:109,121,133`、`ChartContextMenu.tsx:313`、`PineEditorPanel.tsx:69,86`、`ReplayBar.tsx:198`）；checkbox 已 TV 化（`controls.tsx:137,174`） | `ToolbarSelect` 可复用 | 1 |
-| UI:53 | 「两处 tooltip 底色不一致」需**重新表述而非修复**：引擎 `tooltipBg` 现只服务十字光标轴标签（唯一消费点 `crosshairOverlay.ts:88`），与 UI tooltip 是两个表面 | 审计表的同因归并错了 | 0.25（改文档） |
-| UI:54 | 浅色 `--elevated:#e0e3eb` 与 `--border:#e0e3eb` 同值（`global.css:125` vs `:141`），消费点 `WatchlistRow.tsx:189` | 层次弱 | 0.25 |
-| — | `theme.infoLabelBg` **两主题同值 `#2a2e39`**，代码自注「浅色主题待分化」（`theme.ts:72`、`:103`），消费点 `measureRender.ts:49`、`textRender.ts:182` | 仓内唯一 TODO 型自认 | 0.5 |
-| UI:62 | 字重四档并存（400 / 500 / 600 / `<strong>`700；实测 500 仅 1 处、600 共 5 处） | 收敛为三档 | 0.5 |
+| 图例·状态点/日涨跌 后半 | 图例涨跌是**单根** `close-open`（`src/engine/renderer/drawLegend.ts:84-96`），非日内周期的「最后一日变化值」；底栏有 `dayChangePct`（`src/features/market/StatusBar.tsx:12`、渲染分支 `:113-117`）而图例无 | 两处口径并存 | 0.5 |
+| 价格轴·宽度 | 价格轴固定宽（`AXIS_WIDTH = 64`，`src/engine/renderer/chartPanes.ts:6`），长价/低价数字余量不均 | 三期-B5 只收敛了魔数，自适应未做 | 1 |
+| 刻度密度 | 固定 6 条（`drawAxes.ts:29`、`:93`；`src/engine/scale/PriceScale.ts:112` `ticks(targetCount = 6)`），不随面板高度变 | 面板高度已可得（`pane.height`） | 0.5 |
+| 价格轴·快捷入口 | 无「+」：轴区唯一命中件是「自动」按钮（`PaneRenderer.ts:192-210` 绘、`PanZoomGesture.ts:106` 命中） | 需引擎 additive 命中件 + 回调 | 1 |
+| 画线右键菜单 | 缺「设为默认」——全仓 `设为默认\|setAsDefault` **0 命中**（本轮复跑 `grep -rn` 计数为 0） | `src/features/drawings/DrawingContextMenu.tsx` 现有设置/复制/粘贴/锁定/克隆/移除/视觉顺序 | 0.5 |
+| 画线工具栏 | flyout 展开时主按钮不高亮：`src/features/drawings/DrawingToolButton.tsx:59` 底色三元只看 `active`/`hovered`，`open` 只用于 caret 透明度 `:71`、`aria-expanded` `:75` 与旋转 `:100` | 一行表达式 | 0.25 |
+| 顶栏图标态 | `IconButton`（`src/ui/primitives.tsx:112-122`）props 仅 `active/onClick/title/children`，**无 disabled/loading** | 顶栏按钮态缺两态 | 0.5 |
+| 原生控件 | 原生 `<select>` 仍 **7 处**（`src/features/layout/ChartCell.tsx:109,121,133`、`src/features/market/ChartContextMenu.tsx:313`、`src/features/pine/PineEditorPanel.tsx:69,86`、`src/features/replay/ReplayBar.tsx:198`，本轮 `grep -rn "<select"` 复核计数）；checkbox 已 TV 化（`src/ui/controls.tsx:137,174`） | `ToolbarSelect` 可复用 | 1 |
+| 深浅主题一致性（tooltip 底色行） | 「两处 tooltip 底色不一致」需**重新表述而非修复**：引擎 `tooltipBg` 现只服务十字光标轴标签（唯一消费点 `src/engine/renderer/crosshairOverlay.ts:88`），与 UI tooltip 是两个表面、两套语义 | 审计表的同因归并错了 | 0.25（改文档） |
+| 深浅主题一致性（elevated 行） | 浅色 `--elevated:#e0e3eb` 与 `--border:#e0e3eb` 同值（`src/styles/global.css:141` vs `:125`），消费点 `src/features/watchlist/WatchlistRow.tsx:189` | 层次弱 | 0.25 |
+| —（仓内 TODO 型自认，非审计行） | `theme.infoLabelBg` **两主题同值 `#2a2e39`**，代码自注「浅色主题待分化」（`src/engine/theme.ts:72`、`:103`），消费点 `measureRender.ts:49`、`textRender.ts:182` | 唯一 TODO 型自认 | 0.5 |
+| 字体字重 | 字重四档并存（400 / 500 / 600 / `<strong>`700；实测 500 仅 1 处、600 共 5 处） | 收敛为三档 | 0.5 |
 
 ### 1.4 结论四：两处「已知边界」登记已不成立，应就地勘正
 
@@ -84,11 +87,11 @@
 
 ### 四期-A · 审计勘正 + 口径机械承载（1–1.5 人日，零功能变更）
 
-**进度（2026-10-15）**：A2 **已交付**（下表现场读数即交付复跑）；A1、A3 待开工。
+**进度（2026-10-15）**：A2、A1 **已交付**（下表现场读数即 A2 交付复跑；A1 交付记录见本节末）；A3 待开工。
 
 | 项 | 现状 | 动作 | 验收 |
 |---|---|---|---|
-| A1 两份 AUDIT 过期行标注 | §1.1 的 15 行（含 §1.3 的 :53 表述错位） | 在**审计文档就地加标注**（「2026-10-15 复核：已交付，出处 `路径:行号`」），不改写原文 | 表内每行都有出处；`format:check` 天然绿（docs 排除 Prettier） |
+| A1 两份 AUDIT 过期行标注 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：§1.1 的 15 行（含 §1.3 的 tooltip 底色行表述错位） | 在**审计文档就地加标注**（「2026-10-15 复核：已交付，出处 `路径:行号`」），不改写原文。**实际交付面 17 行**：UI 表 15 行（= §1.1 的 14 行 + §1.3 引用的 tooltip 底色行）+ FEATURE 表 2 行，另各加 1 条表抬头说明 | 标注行每行都有当场重取的出处；未核实行在抬头写明「本轮未复核」；`format:check` 绿（docs 排除 Prettier，实测） |
 | A2 gzip 口径脚本化 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：`package.json:6-21` 无体积类命令、`.github/workflows/deploy.yml` 只跑 verify + build——**该口径没有任何机械承载**（README:137 已自认：触线不会让任何命令变红） | 交付：`scripts/check-bundle.mjs`（阈值常量 `APP_GZIP_LIMIT_KB = 160` 只在脚本内，注释不复述以免两处漂移）+ `npm run check:bundle`；并串进 `verify` 末尾 ⇒ CI 的 verify 步骤即承载该口径，超阈值直接终止部署 | 门禁多一条红线；提阈值=改一个常量，与 `chunkSizeWarningLimit` 同一「提阈值而非关闭」哲学 |
 | A3 oxlint 抑制半径机制 | OPEN 行（2026-10-12）：机制未证实，只登记了观测事实 | 用**副本配置**（`.oxlintrc.probe.json` + `-c`，禁改活配置）做受控实验，把「未证实」变成「已证实/已否证」，只出结论不改代码 | 该 OPEN 行关闭（附实验数据），或改为「已知不可控 → 永久禁用该写法」 |
 
@@ -101,12 +104,26 @@
 - 未做两件事及理由：**不删** `deploy.yml` 里那条独立的 `npm run build` 步骤（verify 内已含构建，故该步骤冗余但无害，约 0.7 s；删属部署管线改动，需单独确认）；**不给脚本加单测**——它不在 `src/`、不被 vitest 覆盖，其承重由上述四条探针证明，加测试等于用同一份逻辑自证。
 - 沿革澄清：本脚本**不是** 2026-10-08 退役的 `check:size`（文件规模红线，AST 逻辑单元口径）复活——那条红线现由 oxlint 函数级规则承载（`max-statements 60` / `max-params 10`），本脚本只承载 gzip 体积口径这一件事。
 
+**A1 交付记录（2026-10-15，纯文档、零代码、零像素变更）**
+
+- 交付物：`docs/AUDIT-TV-UI-GAP.md`（§1 主表 39 行中 **15 行**加「2026-10-15 复核」标注 + 1 条表抬头说明）、`docs/AUDIT-TV-FEATURE-GAP.md`（**2 行** + 1 条表抬头说明）。标注一律追加在**「差距描述」列末尾**的 `〔…〕` 内，原单元格一字不改（与 OPEN-DECISIONS 同一纪律）。两表其余行**未在本轮核实**，抬头已写明「未标注=未复核，仍以原表为准」。
+- 取证方法：每条标注的 `路径:行号` 在**写入当场**用 Read / `grep -n` / `sed -n` 重取，不沿用 09-28 版行号；三处「零命中」论断（`9999`、`设为默认|setAsDefault`、`锁定垂直|lockVertical|verticalLock`）与两处计数（原生 `<select>` **7 处**、图表右键 **12 项**）本轮各重跑一次 grep 取数。
+- **本轮抓出并就地订正的四处自身错误**（A1 的价值不只在勘正审计表，也在勘正本规划首版）：
+  1. §1.1/§1.3 原以 `AUDIT-TV-UI-GAP.md` 的**物理行号**（`:24`…）标识审计行，而 A1 一加标注行号即整体位移 ⇒ 全部改为**行标签**（「UI 区域」列名），并声明原行号属 09-28 快照。
+  2. 首版把图表右键菜单记为「12 项，**差 2 项**属 TV 独有子菜单」，逐项清点后实为 **12/14、仍缺 4 项**（粘贴 / Trade / Watchlist 子菜单+Create new list… / 按时间锁定垂直光标）；同处项位行号偏移一位（`:133/:147/:164` 应为 `:132/:146/:163`）。
+  3. 首版 §1.1 结论计数「15 行抽验、13 行整行已交付、2 行小尾巴」漏计「图表右键·警报模型」一行，且把两条余项折进「已交付」⇒ 订正为 **15 行主差距全部已交付，11 行整行闭合、4 行只剩余项**；该订正已按「追加不改写」写回 OPEN-DECISIONS 的 D7 行 Resolution 末与 README 文档索引行。
+  4. **一条被证伪的自己写的论断**：首版标注称 `drawCrosshair.ts`「已不存在」，实读 `find src -name drawCrosshair.ts` 命中 1 个——该文件**仍在**，只是已退化为再导出壳（`export { drawCrosshair } from './crosshairOverlay'` + `drawLegend` / `legendTypes`），失效的是它承载的实现行号而非文件本身。已按实读改写。⇒ 这条正是仓内纪律「被引用的证据本身必须先证明存在」的一次现场兑现。
+- 一次违反「不回写历史」的自纠：编辑 Volume Profile 行时误删原单元格的「）」，当场按原文补回后再追加标注。
+- 「原文不改写」用**脚本机械验**而非目测（一次/node 比对，跑完即弃）：取 `git diff` 的删除行与新增行，从新增行剥掉 `〔…〕` 标注段后逐行做**全等比对** ⇒ `AUDIT-TV-UI-GAP.md` 15/15、`AUDIT-TV-FEATURE-GAP.md` 2/2 全部命中（unmatched=0）。OPEN-DECISIONS 的 D7 行另按**前缀验**：剥去末格竖线后的原文 1164 字符是新文 1418 字符的严格前缀，插入点唯一（Resolution 单元格末）⇒ 确为追加而非改写。
+- 验收读数：`npm run format:check` 绿（`docs/**` 与 `*.md` 由 `.prettierignore` 排除，本批天然不影响门禁）；`git diff --stat` 为 `docs/AUDIT-TV-UI-GAP.md`、`docs/AUDIT-TV-FEATURE-GAP.md`、`docs/PLAN-PHASE4.md`、`docs/decisions/OPEN-DECISIONS.md`、`README.md` 五处，**`src/` 与 `tests/` 零改动**，故不重跑 build / E2E（无代码面变更，27 面黄金截图无从改变）。
+- 未做两件事及理由：**不重排 §1.1 之外的审计行**（其余 24 行 UI + FEATURE 全表未在本轮核实，标注它们等于用未取证结论污染基线——这是「反空洞占位」的另一面）；**不改写 09-28 原文**（含其中已被证伪的观测，如「5 档图标尺寸混用」）——历史观测由标注覆盖，不由删除覆盖。
+
 ### 四期-B · 多图表真实化（**8–11 人日，估**；**2026-10-15 D7 裁决本轮不排**，整批封存待未来重排；重排开工前须裁 D8）
 
 | 项 | 动作 | 人日 | 风险与护栏 |
 |---|---|---|---|
 | B1 单元格真实数据链路 | `useChartSeries` 下沉为 per-cell（cell 持 `symbol/timeframe/chartType` 已在 `layoutStore`）；`generateSeededMockBars` 保留为**降级路径**而非默认；E2E 侧必须走已有的确定化口子 | 2.5–3.5 | 最大风险是网络依赖进 E2E。护栏：新增面全部走 mock/seed 注入，禁 `test.skip`；黄金面结构性免疫（§1.2 实查），故 27 面零 diff 仍须成立 |
-| B2 入口随布局形态 | 周期 / 类型 / 回放 / 撤销重做 / 重载在多格布局下要么进单元格标题栏，要么改为「聚焦单元格驱动顶栏」（**形态待裁 D8**） | 2–3 | 与 B1 同批交付才有意义；`ChartCell.tsx:109-133` 三个原生 select 顺带收敛（§1.3 的 UI:59） |
+| B2 入口随布局形态 | 周期 / 类型 / 回放 / 撤销重做 / 重载在多格布局下要么进单元格标题栏，要么改为「聚焦单元格驱动顶栏」（**形态待裁 D8**） | 2–3 | 与 B1 同批交付才有意义；`ChartCell.tsx:109-133` 三个原生 select 顺带收敛（§1.3 的「原生控件」行） |
 | B3 偏好广播到全部 renderer | 下发链从「`ChartSettingsDialog` 单点写主图」改为 renderer 注册表广播（注册表已存在——`eachChartRenderer`，`useTvShortcuts.ts:134` 在用） | 1.5–2 | 顺带关闭 `PLAN-PHASE3.md:158` ③ 与 `:188` ④ 两条登记；须证明「新增一格时被同帧播种」而非只改已有格 |
 | B4 右轨 / 警报按聚焦格 | 数据窗口与对象树（`RightSide.tsx:97,99`）改读聚焦单元格 renderer；`useAlertWatcher`（`App.tsx:71`）扩为按可见品种集合采样 | 2–2.5 | 警报扩围会改触发语义（一格品种也能触发主图警报），属**用户可见语义变更**，须先裁 |
 | B5（可选）偏好进布局快照 | `layoutSnapshot.ts:232` 起 `captureSnapshot` 仍不含任何显示偏好（三期 B0 登记 ② 原样保留） | 0.5–1 | **随 B 批一并封存**（D7 未排 B ⇒ B5 无意义） |
@@ -146,7 +163,7 @@
 
 | 批次 | 人日（估） | 依赖 | 出口判据 |
 |---|---|---|---|
-| 四期-A | 1–1.5 | 无 | 15 行过期结论全部带出处标注（A1，待做）；`npm run check:bundle` 进 `verify`（**A2 已达成 2026-10-15**）；OPEN 机制行关闭（A3，待做） |
+| 四期-A | 1–1.5 | 无 | 15 行过期结论全部带出处标注（**A1 已达成 2026-10-15**：UI 表 15 行 + FEATURE 表 2 行 = 17 行，其余行在表抬头写明「本轮未复核」——出口判据按实际核实范围收口，不用未取证结论充数）；`npm run check:bundle` 进 `verify`（**A2 已达成 2026-10-15**）；OPEN 机制行关闭（A3，待做） |
 | 四期-E1 | 0.5–1 | 无 | 「回放中画线」成为被测事实（E2E 例数增加、`--retries=0` 全绿） |
 | 四期-C | 4–6 | 无（C1/C5 需黄金面重基线流程） | §1.3 表逐条处置或明确不做；像素项有新基线评审记录 |
 | 四期-E2 | 1–1.5 | **已裁（D10 = 做）** | 盈亏数字含费口径入册；设置项与计算接入有变异测试支撑 |

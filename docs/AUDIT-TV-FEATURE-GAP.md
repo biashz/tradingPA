@@ -45,6 +45,8 @@
 
 ## 1. 差距清单总表（按 11 个维度）
 
+> **〔2026-10-15 复核标注（四期-A1）〕** 本表写于 2026-09-28（v1.1 回填 09-30），其后二期收尾、三期 A–F 与多次清偿批次使**多行「当前表现」列过期**。本轮逐行重新取证（**不沿用本表原行号与该列**），在相关行的差距列末尾追加「2026-10-15 复核」标注并附当前代码出处 `路径:行号`；原文单元格一律不改写（与 OPEN-DECISIONS 同一纪律）。取证清单见 `docs/PLAN-PHASE4.md` §1.1/§1.3/§1.4，据此重排的四期范围见其 §2/§5。**加标注的行数 = 2**（Volume Profile 行、回放档位行）——本轮只对这两行做了逐行核实，其余行**未复核，仍以原表为准**；UI 维度表的复核面更宽（15 行），见 `docs/AUDIT-TV-UI-GAP.md` §1 抬头说明。
+
 优先级定义：**P0** = TV 核心交互/视觉一致性且「差一步就齐」（框架已在，≤6 人日）；**P1** = 高价值功能缺口，中等成本；**P2** = TV 长尾/高级功能或超出图表复刻核心范围。工作量为人日（单人）。
 
 ### 1.1 图表交互（缩放 / 平移 / 快捷键）
@@ -81,7 +83,7 @@
 | 功能模块 | TV 标准行为 | 当前项目状态 | 差距描述 | 优先级 | 预估工作量 |
 |---|---|---|---|---|---|
 | 内置指标数量 | TV 100+（charting library 官方）；评测称 400+（含社区脚本） | ~~32 个（`indicators/builtin/` 5 文件）~~ **已交付**：64 个（`indicators/builtin/` 20 文件按族拆分，P1-A 净增 30 + P2-B Anchored VWAP） | ~~高频缺失（按用户使用率与 TV 默认收藏排序）：**Volume Profile、Anchored VWAP、Alligator、KST、Coppock、ROC/Momentum、TRIX、TSI、Vortex、Fisher Transform、Choppiness Index、Elder Ray、Mass Index、Chaikin Oscillator、Aroon Oscillator、Price Oscillator、Bollinger Width/NATR/Standard Deviation、Percent B、Correlation Coefficient、Linear Regression、McGinley Dynamic** 等约 30 个。声明式 schema + 窗口化计算框架已在，每个指标是纯计算函数 + 金标准用例~~ 原高频缺失清单约 30 个**已补齐**（P1-A 交付，Anchored VWAP 由 P2-B 交付）；TV 100+ 仍有长尾差距 | P1 | 10-15（30 个）已完成 |
-| Volume Profile / Session Volume Profile | 右侧/横置成交量分布直方图（POC/VAH/VAL），TV Premium 卖点 | ~~无~~ **已交付**（P1-F，ADR-001）：`engine/profile/volumeProfile.ts` kline 近似分桶 + 右对齐直方图（POC/VAH/VAL），IndicatorManager profile 分支（模板持久化自动兼容）+ 双主题 token | ~~需按价格分桶聚合可见区间成交量（Binance kline 近似）或 aggTrades；作为独立面板挂副图，复用副图框架~~ **已交付**（aggTrades 因请求预算 7-27% 配额否决，kline 近似为 TV 同语义降级方案；Session VP 时间分段未做） | P1 | ~~8-12~~ 已完成 |
+| Volume Profile / Session Volume Profile | 右侧/横置成交量分布直方图（POC/VAH/VAL），TV Premium 卖点 | ~~无~~ **已交付**（P1-F，ADR-001）：`engine/profile/volumeProfile.ts` kline 近似分桶 + 右对齐直方图（POC/VAH/VAL），IndicatorManager profile 分支（模板持久化自动兼容）+ 双主题 token | ~~需按价格分桶聚合可见区间成交量（Binance kline 近似）或 aggTrades；作为独立面板挂副图，复用副图框架~~ **已交付**（aggTrades 因请求预算 7-27% 配额否决，kline 近似为 TV 同语义降级方案；Session VP 时间分段未做）〔**2026-10-15 复核：该半句已过期——Session VP 已交付**（二期-G）：`src/engine/profile/volumeProfile.ts:18` 参数 `mode?: 'range' | 'session'`、`:55` 取值归一、`:223` 类型声明，绘制分发 `src/engine/renderer/PaneRenderer.ts:122`（`mode === 'session'` → `drawSessionVolumeProfile`，否则 `drawVolumeProfile`）〕 | P1 | ~~8-12~~ 已完成 |
 | 指标多周期（MTF） | 指标引用其他周期数据（TV `request.security`） | Pine 子集无 security；内置指标无 MTF 参数 | 需指标引擎支持跨周期序列输入 | P2 | 5-8 |
 | 指标模板/收藏/图例交互 | 模板存取、图例悬停按钮、右键菜单、收藏 | 已对齐（git log：`a487639` 图例交互对齐 TV、`053536f` 悬停按钮与收藏、`7bff966` 指标四页签对话框） | 已对齐 | — | — |
 | 指标叠加层数 | TV 付费分层级（Essential 1 层起） | 主图叠加 + 多副表面板，无层数上限问题 | 已对齐 | — | — |
@@ -125,7 +127,7 @@
 
 | 功能模块 | TV 标准行为 | 当前项目状态 | 差距描述 | 优先级 | 预估工作量 |
 |---|---|---|---|---|---|
-| 回放档位 | 9 档回放速度 + 步进；回放中可继续画线/挂单 | 3 档倍速 + 步进 + 随机 + 按日期定位（`ReplayBar.tsx` SPEEDS=[1,2,4]） | 倍速表扩到 TV 同档；回放中画线未验证（理论上引擎未禁用，需 E2E 验证） | P1 | 1 |
+| 回放档位 | 9 档回放速度 + 步进；回放中可继续画线/挂单 | 3 档倍速 + 步进 + 随机 + 按日期定位（`ReplayBar.tsx` SPEEDS=[1,2,4]） | 倍速表扩到 TV 同档；回放中画线未验证（理论上引擎未禁用，需 E2E 验证）〔**2026-10-15 复核：前半已交付、后半仍未验证**——① 倍速表：`src/store/replayStore.ts:59` `REPLAY_SPEEDS = [1, 2, 4, 8]` + `:67-69` `replayTickMs(speed) = 300 / speed`（三期-E1 把档位与换算上移为 store 单一来源，组件 `ReplayBar.tsx` 的下拉与 `setInterval` 同读该表；本行原记 `SPEEDS=[1,2,4]` 已过期），守卫 `tests/unit/replay-autoplay.test.ts` 12 例；「9 档」是 TV 侧档位，本仓取 1/2/4/8 四档（0.5x 慢档经裁决不做，理由见 OPEN-DECISIONS 三期-EF 行）。② 画线仍未验证：E2E 侧 `grep 回放` 只命中 4 例（`smoke.spec.ts:121,161`、`interactions.spec.ts:290`、`settings.spec.ts:266`），无一覆盖画线；且 `src/engine/renderer/InputController.ts:299-307` 回放态右键被**下单浮窗**占用、`:301-302` 命中画线时不弹 ⇒ 排 **四期-E1**（先把「回放中能不能画、画在游标左还是右、未来 bar 上画线会怎样」钉成被测事实，再决定要不要限制），见 `PLAN-PHASE4` §2-E〕 | P1 | 1 |
 | 模拟交易单类型 | TV Paper Trading：market/limit/stop/stop-limit、持仓管理、交易历史 | ~~市价单 + TP/SL 拖线 + 持仓详情 + 成交报告（`features/trading/`）~~ **已交付**：market/limit/stop/stop-limit 挂单 + 挂单列表 + 触价引擎（`paperEngine.ts` + `orderTrigger.ts`，gap 开盘 TV 语义：limit 优价成交/stop 转市价）+ 撤单 + TP/SL 拖线 + 持仓详情 + 成交报告 | ~~limit/stop 挂单 + 订单簿列表；项目复盘交易完成度已高于 charting_library demo~~ **已交付**（P1-D） | P1 | ~~4-6~~ 已完成 |
 | Bar Magnifier | 单根 K 线放大看底层 tick 数据 | 无（数据源无 tick） | 依赖 tick 级数据，与数据源能力绑定 | P2 | 5-8 |
 | 回放隐藏未来 K 线 | 回放起点右侧数据遮罩/裁掉 | 已对齐（`ChartRenderer.setReplayIndex` → `viewport.setReplayEdge`，渲染上界 `to ≤ replayIndex`，选中时回放位居中） | 已对齐 | — | — |
