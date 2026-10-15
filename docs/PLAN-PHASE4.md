@@ -84,11 +84,22 @@
 
 ### 四期-A · 审计勘正 + 口径机械承载（1–1.5 人日，零功能变更）
 
+**进度（2026-10-15）**：A2 **已交付**（下表现场读数即交付复跑）；A1、A3 待开工。
+
 | 项 | 现状 | 动作 | 验收 |
 |---|---|---|---|
 | A1 两份 AUDIT 过期行标注 | §1.1 的 15 行（含 §1.3 的 :53 表述错位） | 在**审计文档就地加标注**（「2026-10-15 复核：已交付，出处 `路径:行号`」），不改写原文 | 表内每行都有出处；`format:check` 天然绿（docs 排除 Prettier） |
-| A2 gzip 口径脚本化 | `package.json:6-21` 无体积类命令，`.github/workflows/deploy.yml` 只跑 verify + build——**该口径没有任何机械承载**（README:137 已自认：触线不会让任何命令变红） | 加 `npm run check:bundle`：读 `dist` 最大应用块 gzip，超 **160 kB** 退出非零；现值 148.49 kB 作为登记基线写进注释 | 门禁多一条红线；提阈值=改一个常量，与 `chunkSizeWarningLimit` 同一「提阈值而非关闭」哲学 |
+| A2 gzip 口径脚本化 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：`package.json:6-21` 无体积类命令、`.github/workflows/deploy.yml` 只跑 verify + build——**该口径没有任何机械承载**（README:137 已自认：触线不会让任何命令变红） | 交付：`scripts/check-bundle.mjs`（阈值常量 `APP_GZIP_LIMIT_KB = 160` 只在脚本内，注释不复述以免两处漂移）+ `npm run check:bundle`；并串进 `verify` 末尾 ⇒ CI 的 verify 步骤即承载该口径，超阈值直接终止部署 | 门禁多一条红线；提阈值=改一个常量，与 `chunkSizeWarningLimit` 同一「提阈值而非关闭」哲学 |
 | A3 oxlint 抑制半径机制 | OPEN 行（2026-10-12）：机制未证实，只登记了观测事实 | 用**副本配置**（`.oxlintrc.probe.json` + `-c`，禁改活配置）做受控实验，把「未证实」变成「已证实/已否证」，只出结论不改代码 | 该 OPEN 行关闭（附实验数据），或改为「已知不可控 → 永久禁用该写法」 |
+
+**A2 交付记录（2026-10-15，零功能代码、零像素变更）**
+
+- 承载物：`scripts/check-bundle.mjs`（只用 node builtins：`fs`/`path`/`zlib`/`process`，**零新依赖**）+ `package.json` 的 `check:bundle`，`verify` 链尾追加 `npm run build && npm run check:bundle`。`.oxlintrc.json` 把 `scripts/**/*.mjs` 并入既有 node-env override（该 override 原列 `*.config.*` / vite / playwright 三形）。
+- 应用块判定：**未命中第三方分组名的 js 块**（`VENDOR_GROUPS` = react / radix / lucide / zustand / vendor / rolldown-runtime，与 `vite.config.ts` 的 `codeSplitting.groups` 同步）。口径刻意取 **fail-strict**：将来新增 vendor 组而忘记同步此处，后果是把 vendor 块当应用块 ⇒ 误红，而不是反过来漏计应用增长。
+- 尺子照登（防后续比对误读）：脚本用 zlib 默认档（level 6），Vite/Rolldown 用 Rust 压缩器。同一 dist 实测：应用块 Vite **148.49 kB** ／ 脚本 **147.61 kB**（差 884 B ≈ 0.6%，同一阈值下脚本略松）；react 块 Vite 68.27 ／ 脚本 67.53，radix 34.43 ／ 34.13。 zlib 各档扫一遍（level 3/4/5/6/9 + memLevel + Huffman-only）无一档能复现 Vite 报数，故**不做伪校准**、只登记差异。单位取字节/1000（与 Vite 同，非 KiB）。
+- 四条探针（一律走脚本**副本** `/tmp/cb-probe.mjs`，活脚本从头到尾未改；跑完即删）：① 副本阈值 140 ⇒ `exit 1` 并打印超出 7.61 kB；② 副本把 `if (over)` 写成 `if (false)` ⇒ `exit 0` 且「裕度 −7.61 kB」——这条证明**变红由判定行承载而非打印语句**，且负裕度会当场自曝；③ 副本 `VENDOR_GROUPS` 误含 `index` ⇒ `exit 2`「未识别到应用块」；④ 在无 `dist` 的工作目录跑活脚本 ⇒ `exit 2`「先运行 npm run build」。探针前先 `grep -n` 证明改动落地，再解读退出码。
+- 未做两件事及理由：**不删** `deploy.yml` 里那条独立的 `npm run build` 步骤（verify 内已含构建，故该步骤冗余但无害，约 0.7 s；删属部署管线改动，需单独确认）；**不给脚本加单测**——它不在 `src/`、不被 vitest 覆盖，其承重由上述四条探针证明，加测试等于用同一份逻辑自证。
+- 沿革澄清：本脚本**不是** 2026-10-08 退役的 `check:size`（文件规模红线，AST 逻辑单元口径）复活——那条红线现由 oxlint 函数级规则承载（`max-statements 60` / `max-params 10`），本脚本只承载 gzip 体积口径这一件事。
 
 ### 四期-B · 多图表真实化（**8–11 人日，估**；**2026-10-15 D7 裁决本轮不排**，整批封存待未来重排；重排开工前须裁 D8）
 
@@ -135,7 +146,7 @@
 
 | 批次 | 人日（估） | 依赖 | 出口判据 |
 |---|---|---|---|
-| 四期-A | 1–1.5 | 无 | 15 行过期结论全部带出处标注；`npm run check:bundle` 进 `verify`；OPEN 机制行关闭 |
+| 四期-A | 1–1.5 | 无 | 15 行过期结论全部带出处标注（A1，待做）；`npm run check:bundle` 进 `verify`（**A2 已达成 2026-10-15**）；OPEN 机制行关闭（A3，待做） |
 | 四期-E1 | 0.5–1 | 无 | 「回放中画线」成为被测事实（E2E 例数增加、`--retries=0` 全绿） |
 | 四期-C | 4–6 | 无（C1/C5 需黄金面重基线流程） | §1.3 表逐条处置或明确不做；像素项有新基线评审记录 |
 | 四期-E2 | 1–1.5 | **已裁（D10 = 做）** | 盈亏数字含费口径入册；设置项与计算接入有变异测试支撑 |
@@ -148,6 +159,6 @@
 
 基线（2026-10-15 三期-EF 交付复跑，README:81）：typecheck 0 错 / oxlint 389 文件 **0 错 0 警告** / format:check 绿 / 单测 **93 文件 1509 例** / 全量 `npm run verify` 绿；E2E **67 例** `--retries=0` 全绿 + **27 面黄金截图零 diff**；build 应用块 **518.04 kB / gzip 148.49 kB**（560 档余 41.96 kB、gzip 160 档余 11.51 kB）。
 
-本期新增两条口径：**① `npm run check:bundle` 承载 gzip 上限 160 kB**（A2，把「只活在注释里」的口径变红得起）；**② 多图表新增 E2E 面必须离线确定化**（B1 硬约束，禁 `test.skip`、禁真实网络）。
+本期新增两条口径：**① `npm run check:bundle` 承载 gzip 上限 160 kB**（A2，**已交付 2026-10-15**——脚本 + `verify` 链尾；交付复跑：typecheck 0 / oxlint **390 文件** 0 错 0 警告 / format:check 绿 / 单测 93 文件 1509 例 / build 应用块 518.04 kB（Vite 报 gzip 148.49 kB、脚本 zlib 口径 147.61 kB、裕度 12.39 kB）/ E2E **67 passed** `--retries=0` + 27 面黄金零 diff（本批零 `src/` 改动，像素中性）；承重由四条副本探针证明，见 §2-A 的 A2 交付记录）；**② 多图表新增 E2E 面必须离线确定化**（B1 硬约束，禁 `test.skip`、禁真实网络——随 B 批封存，本期不生效）。
 
 其余纪律不变：`git add <显式路径>`、一批 1–2 提交且提交信息带批次号、`docs/` 与 `*.md` 不进 Prettier、OPEN-DECISIONS 只追加 + 就地关闭、引擎公开 API 只做 additive、`src/engine/**` 不 import React/zustand、每条「已交付 / 行为中性」论断须有删除探针或变异测试支撑，且**先证明探针落地再解读结果**。

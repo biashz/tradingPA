@@ -35,11 +35,14 @@ jobs:
 
       - run: npm ci
 
-      # 机器无关门禁先行：typecheck + lint + format:check + 单测。
+      # 机器无关门禁先行：typecheck + lint + format:check + 单测 + build + check:bundle
+      # （2026-10-15 四期-A2 起 verify 链尾含应用块 gzip 门禁，故体积口径越线即在此终止部署）
       # 红则终止部署——Pages 产物永远来自全绿提交
       - run: npm run verify
 
-      # tsc -b + vite build；base 由 GITHUB_REPOSITORY 自动推导
+      # tsc -b + vite build；base 由 GITHUB_REPOSITORY 自动推导。
+      # 与 verify 内的 build 重复一次（约 0.7 s、产物一致）——保留本步骤而非删：
+      # 部署管线的改动需单独确认，见 README「GitHub Pages 部署」下的注
       - run: npm run build
 
       # .nojekyll：防止 Pages 的 Jekyll 处理忽略下划线文件（保险，当前产物无此类文件）
