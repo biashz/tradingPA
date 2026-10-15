@@ -96,7 +96,7 @@ docs/           Spec 与差距分析（见下）
 
 **lint disable 台账（源码内 `eslint-disable` 注释现行 2 条；2026-10-12 逐条探针复核时为 3 条，三期-H 交付后 `useChartSeries.ts` 一条归零）**
 
-复核方法：把该行的 disable 注释删掉、其余不动，跑 `npx oxlint <该文件>` 看新增诊断——「不能删」必须有机械证据，不接受口头理由。
+复核方法：把该行的 disable 注释删掉、其余不动，跑 `npx oxlint <该文件>` 看新增诊断——「不能删」必须有机械证据，不接受口头理由。**四期-A3（2026-10-15）改用副本复跑**（`cp` 到仓外临时目录后删行，活文件全程未动）：两条现行指令各自**只遮蔽 1 条同名诊断**、还原指令后各自文件读数回到 0——**均无编译器规则连带遮蔽**（连带半径按下一段机制计）。
 
 | 位置 | 规则 | 删掉后新增 | 为何保留 |
 |---|---|---|---|
@@ -104,7 +104,14 @@ docs/           Spec 与差距分析（见下）
 | `src/features/market/useChartSeries.ts` | ~~`react-hooks/exhaustive-deps`~~ | — | **已归零**（三期-H，2026-10-12）：该指令删除后连带显形的 6 条 `react(refs)` + 1 条 `react(set-state-in-effect)` 全部由代码结构消解，不靠指令抑制。改造后 `npx oxlint src/features/market/useChartSeries.ts` 0 错 0 警告且文件内零 disable；行为零变更经单测 + 27 面黄金截图 + E2E `--retries=0` 实证。详见 `docs/PLAN-PHASE3.md` §2-H |
 | `src/features/layout/ChartWorkspace.tsx:175` | `react-hooks/purity` | 1 条（`Date.now()` 渲染期读取） | 回放 bar 缺失瞬态的墙钟占位；改 effect+state 会触发 set-state-in-effect 且首帧取旧值，从 store/末柱派生会改变该瞬态显示值——两条替代路径均已核实为行为变更（理由同见该处 L172–174 注释） |
 
-**探针副产物（oxlint 1.87 的指令作用域，与 ESLint 语义不一致）**：在 `.ts` 自定义 hook 文件里，一条 react-hooks 指令会抑制**同文件其余行**的编译器规则诊断——把 `useChartSeries.ts:223` 的指令移到同文件任意其他位置（含文件末尾）后，refs/purity/set-state 诊断仍全部消失；删掉指令则报出。而在 `.tsx` 双组件合成件里，指令只对紧邻下一行生效。机制未证实（疑与该函数是否走 React Compiler 路径有关），已在 OPEN-DECISIONS 登记为待查项。
+**抑制半径机制（四期-A3 已定位，2026-10-15；替代本节原「机制未证实」段）**：oxlint 1.87 里 React Compiler 那组诊断的输出名是 **`react(refs)` / `react(purity)` / `react(set-state-in-effect)`**（不是 `react-hooks(...)`），而配置按 `react-hooks/*` 名启用。据此，指令的实际语义分三条：
+
+- **点名编译器规则的指令 = 与 ESLint 一致**：`// eslint-disable-next-line react-hooks/refs`（或 `react/refs`、`oxlint-disable-next-line` 同形）只吃掉紧邻下一行的那一条 refs 诊断；块式 `/* eslint-disable react-hooks/refs */` 只吃掉该规则、且**按位置取范围**（写在文件末尾则前面的代码一条不吃）。实测：同一双组件文件基线 8 条（refs/purity/set-state/exhaustive 各 2），上述各变体分别剩 7／8 条。
+- **点名「非编译器 react-hooks 规则」（`exhaustive-deps`、`rules-of-hooks`）的指令 = 附带吞掉编译器那组**，且半径随形式突变：**行式**只吞**所在组件/hook 这个分析单元**内的全部编译器诊断（指令指向哪一行无所谓，落在单元内即生效；本仓两条现行指令即此形，实测各自只遮蔽 1 条同名诊断、所在单元内无编译器诊断可吞 ⇒ **连带半径为零**）；**块式直接关掉整文件的编译器分析**——与位置无关（写在文件末尾、覆盖范围为空，前面 6 条编译器诊断照样消失），`/* eslint-enable */` 配对也**不恢复**。
+- ⇒ **本仓口径**：`react-hooks/exhaustive-deps` 只能以 `eslint-disable-next-line` 形出现，**禁止块式 `/* eslint-disable react-hooks/exhaustive-deps */`**（它会静默停掉整个文件的 refs/purity/set-state，且门禁读数看起来只是「少了一条 exhaustive-deps」）。`--report-unused-disable-directives` **不可作为删除依据**：合成 hook 用例里它把一条正在吞 3 条编译器诊断的指令报成「Unused（no problems were reported）」——它只核对被点名规则自己有没有诊断。
+- **一条被推翻的旧观测**：上一段原写「把 `useChartSeries.ts:223` 的指令移到同文件任意位置（含文件末尾）后编译器诊断仍全部消失」。A3 用 `git show e7b0cb8^:src/features/market/useChartSeries.ts`（306 行原件，含该指令）重跑三态：原样 **0** 警告、删指令 **8**（refs×6 + set-state×1 + exhaustive×1）、**指令移到文件末尾仍 8**。⇒ 「文件级半径」不成立，真实半径是**所在 hook 单元**（该文件只有一个导出 hook，指令在单元内，故当时「移到任意位置」若仍在函数体内就复现「全部消失」）；两处观测并不矛盾，是一条未复核的转述把「函数体内」写成了「文件末尾」。
+
+复现件（本轮一次性构造、跑完即删，**未改活配置 `.oxlintrc.json`**：全部走 `cp` 出的 `.oxlintrc.probe.json` + `-c`，探针件放 `.probe/`）：**47 份探针件、46 份有效读数**（多出的 1 份是首轮正文写重、后被重做件替代的那份，其 parse error 读数不入结论）。46 份变体覆盖 指令名（`react-hooks/{refs,purity,set-state-in-effect,exhaustive-deps,use-memo,rules-of-hooks}` / `react/{refs,jsx-key}` / `no-debugger` / 裸）×形式（next-line / 块 / 块+enable 配对 / 多名列）×位置（目标行上方 / 单元内无诊断行 / 两组件之间 / 文件首 / 文件末）×文件形（`.tsx` 双组件 / `.ts` 单 hook / 生产件副本）。**一处自纠**：`v10`/`v11` 首轮生成器把正文写了两遍，输出是 3 条 parse error 而非 lint 结论——该两份结果作废并按修正后的文件重跑（`react/refs` 行式与 `exhaustive-deps` 中部块式的读数在重跑后才入上表）。附带一次越界提醒：探针件放在仓库内时**活配置会把它们一起 lint**（实测 `npm run lint` 一度变成 390→438 文件、197 警告 + 3 错误），删净后回到 390 文件 0/0；后续同类实验应放仓外目录或先 `rm` 再跑门禁。
 
 
 **E2E 在 Windows 上必须先自己起 dev server 再跑**：

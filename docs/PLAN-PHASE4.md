@@ -11,7 +11,7 @@
 | `docs/AUDIT-TV-UI-GAP.md` / `docs/AUDIT-TV-FEATURE-GAP.md` | 复刻差距表——但行级结论已大面积过期 | 逐行重读原差距描述 → 到代码里找该行为的当前实现处 |
 | `docs/PLAN-PHASE3.md` 各批次「**登记（非遗漏）**」清单 | 交付时显式让路的边界（B0 ②、B2 ③、B3 ④⑤ 三处同一主题） | 逐条回读 + 到代码核实边界是否仍成立 |
 | 源码内「待分化 / 属后续增强」注释 | 唯一的仓内 TODO 型自认（`theme.ts:72,103`） | Grep + 读消费点 |
-| `docs/decisions/OPEN-DECISIONS.md` 仍 OPEN 的两行 | aggTrades 精确 delta、oxlint 指令抑制半径机制 | 全文 59 行逐行核对状态列 |
+| `docs/decisions/OPEN-DECISIONS.md` 仍 OPEN 的行 | aggTrades 精确 delta、oxlint 指令抑制半径机制 | 全文 59 行逐行核对状态列。**登记时（2026-10-15 取证）两行皆 OPEN；本期已就地关闭后者**（四期-A3，机制定位见 §2-A 交付记录与 README 台账机制段），余下 aggTrades 与本期新增的 D8/D9 三行仍 OPEN |
 
 ## 1. 本轮重新查阅的四个结论
 
@@ -87,13 +87,13 @@
 
 ### 四期-A · 审计勘正 + 口径机械承载（1–1.5 人日，零功能变更）
 
-**进度（2026-10-15）**：A2、A1 **已交付**（下表现场读数即 A2 交付复跑；A1 交付记录见本节末）；A3 待开工。
+**进度（2026-10-15）**：A2、A1、A3 **全部已交付** ⇒ **四期-A 批次收口**（交付记录见本节末三段）。
 
 | 项 | 现状 | 动作 | 验收 |
 |---|---|---|---|
 | A1 两份 AUDIT 过期行标注 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：§1.1 的 15 行（含 §1.3 的 tooltip 底色行表述错位） | 在**审计文档就地加标注**（「2026-10-15 复核：已交付，出处 `路径:行号`」），不改写原文。**实际交付面 17 行**：UI 表 15 行（= §1.1 的 14 行 + §1.3 引用的 tooltip 底色行）+ FEATURE 表 2 行，另各加 1 条表抬头说明 | 标注行每行都有当场重取的出处；未核实行在抬头写明「本轮未复核」；`format:check` 绿（docs 排除 Prettier，实测） |
 | A2 gzip 口径脚本化 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：`package.json:6-21` 无体积类命令、`.github/workflows/deploy.yml` 只跑 verify + build——**该口径没有任何机械承载**（README:137 已自认：触线不会让任何命令变红） | 交付：`scripts/check-bundle.mjs`（阈值常量 `APP_GZIP_LIMIT_KB = 160` 只在脚本内，注释不复述以免两处漂移）+ `npm run check:bundle`；并串进 `verify` 末尾 ⇒ CI 的 verify 步骤即承载该口径，超阈值直接终止部署 | 门禁多一条红线；提阈值=改一个常量，与 `chunkSizeWarningLimit` 同一「提阈值而非关闭」哲学 |
-| A3 oxlint 抑制半径机制 | OPEN 行（2026-10-12）：机制未证实，只登记了观测事实 | 用**副本配置**（`.oxlintrc.probe.json` + `-c`，禁改活配置）做受控实验，把「未证实」变成「已证实/已否证」，只出结论不改代码 | 该 OPEN 行关闭（附实验数据），或改为「已知不可控 → 永久禁用该写法」 |
+| A3 oxlint 抑制半径机制 **（已交付 2026-10-15）** | 取证时的现状（交付后已过时，原文照登）：OPEN 行（2026-10-12）：机制未证实，只登记了观测事实 | 用**副本配置**（`.oxlintrc.probe.json` + `-c`，禁改活配置）做受控实验，把「未证实」变成「已证实/已否证」，只出结论不改代码 | 该 OPEN 行关闭（附实验数据），或改为「已知不可控 → 永久禁用该写法」——**两者都成立**：机制已定位（见下记录），同时落一条口径「`react-hooks/exhaustive-deps` 禁块式写法」 |
 
 **A2 交付记录（2026-10-15，零功能代码、零像素变更）**
 
@@ -117,6 +117,14 @@
 - 「原文不改写」用**脚本机械验**而非目测（一次/node 比对，跑完即弃）：取 `git diff` 的删除行与新增行，从新增行剥掉 `〔…〕` 标注段后逐行做**全等比对** ⇒ `AUDIT-TV-UI-GAP.md` 15/15、`AUDIT-TV-FEATURE-GAP.md` 2/2 全部命中（unmatched=0）。OPEN-DECISIONS 的 D7 行另按**前缀验**：剥去末格竖线后的原文 1164 字符是新文 1418 字符的严格前缀，插入点唯一（Resolution 单元格末）⇒ 确为追加而非改写。
 - 验收读数：`npm run format:check` 绿（`docs/**` 与 `*.md` 由 `.prettierignore` 排除，本批天然不影响门禁）；`git diff --stat` 为 `docs/AUDIT-TV-UI-GAP.md`、`docs/AUDIT-TV-FEATURE-GAP.md`、`docs/PLAN-PHASE4.md`、`docs/decisions/OPEN-DECISIONS.md`、`README.md` 五处，**`src/` 与 `tests/` 零改动**，故不重跑 build / E2E（无代码面变更，27 面黄金截图无从改变）。
 - 未做两件事及理由：**不重排 §1.1 之外的审计行**（其余 24 行 UI + FEATURE 全表未在本轮核实，标注它们等于用未取证结论污染基线——这是「反空洞占位」的另一面）；**不改写 09-28 原文**（含其中已被证伪的观测，如「5 档图标尺寸混用」）——历史观测由标注覆盖，不由删除覆盖。
+
+**A3 交付记录（2026-10-15，零代码、零配置变更；`src/` 与 `.oxlintrc.json` 全程未动）**
+
+- 根因一句话：oxlint 1.87 里 React Compiler 那组诊断的**输出名是 `react(refs)` / `react(purity)` / `react(set-state-in-effect)`**，而本仓配置按 `react-hooks/*` 启用（`.oxlintrc.json:7-9`）——指令匹配表因此把「react-hooks 命名空间里的编译器规则名」和「非编译器规则名（`exhaustive-deps` / `rules-of-hooks`）」分成两套语义，2026-10-12 那两条互相矛盾的观测正是这两套。
+- 三条语义（基线双组件件 8 条：refs/purity/set-state/exhaustive 各 2；全部读数为当场跑出的 `Found N warnings`）：**① 点名编译器规则=ESLint 一致**——行式 8→7（`react-hooks/refs`、`react/refs`、`oxlint-disable-next-line` 三形同效）、块式按位置取范围（写文件首 8→6 只吃该规则；写文件末尾 8→8 一条不吃）。**② 点名 `exhaustive-deps`/`rules-of-hooks`=附带吞掉编译器那组，半径随形式突变**——行式吞**所在组件/hook 分析单元**内全部编译器诊断（指向单元内无诊断的行也生效：单组件件 2→1；双组件件压 Child 的 useEffect 行 ⇒ Child 三条同灭、Parent 四条全留 8→4），**块式关整文件编译器分析与位置无关且 `eslint-enable` 配对不恢复**（写文件末尾仍 8→2；`rules-of-hooks` 同效；多名列 `exhaustive-deps, no-debugger` 同效；点名 `use-memo` 无此副作用 8→8）。**③ 裸指令**——行式只吃那一行全部规则 8→6，块式吃掉全文件 8→0；点名非 react-hooks 规则（`no-debugger`、`react/jsx-key`）一律 8→8。
+- **原登记里被推翻的那半句**：`useChartSeries.ts`「指令移到文件末尾（函数体之外）诊断仍全部消失」不成立。用 `git show e7b0cb8^:src/features/market/useChartSeries.ts`（306 行原件、含 :223 指令）跑三态：原样 **0** ／ 删指令 **8**（refs×6 + set-state×1 + exhaustive×1）／**指令移至文件末尾仍 8** ⇒ 半径是 hook 单元（该文件单一导出 hook，「任意位置」只要还在函数体内就命中整个单元）。两条观测由此合流，无需再猜「React Compiler 路径切换」。
+- 由此落三条口径（已入 README 台账机制段）：**(a) `react-hooks/exhaustive-deps` 只准 `eslint-disable-next-line` 形，禁块式**（块式=静默停整文件三条编译器规则，门禁读数只表现为「少一条 exhaustive-deps」）；**(b) `--report-unused-disable-directives` 不能当「这条能不能删」的依据**——合成 hook 件里它把一条正吞掉 3 条编译器诊断的指令报成 `Unused eslint-disable directive (no problems were reported)`，它只核对被点名规则自身有无诊断；**(c) 现行 2 条指令连带半径为零**：`Chart.tsx:108` 与 `ChartWorkspace.tsx:175` 各以**生产件副本删行**复跑 ⇒ 分别只显形 1 条同名诊断（exhaustive-deps 一条 / `react(purity)` 一条），还原后各自 0 条，单元内无编译器诊断可被吞。
+- 实验规模与两处自纠：**47 份探针件、46 份有效读数**（多出的 1 份是首轮正文写重、后被重做件替代的那份——它的 parse error 读数不入结论），覆盖 指令名 × 形式（行式 / 块式 / 块式+enable 配对 / 多名列）× 位置（目标行上方 / 单元内无诊断行 / 两组件之间 / 文件首 / 文件末）× 文件形（`.tsx` 双组件 / `.ts` 单 hook / 生产件副本 / 历史原件）。**自纠 1**：首轮生成器把两份探针件正文写重，输出是 3 条 parse error 而非诊断结论——该两份作废并修正重跑后才有上面的 `react/refs` 行式与中部块式读数（**先证明探针件本身有效，再解读读数**）。**自纠 2**：探针件放在仓内时**活配置会把它们一并 lint**，`npm run lint` 一度 390→438 文件、197 警告 + 3 错误；`rm -rf .probe .oxlintrc.probe.json` 后复跑回到 **390 文件 0 错 0 警告**。后续同类实验应放仓外目录，或先清探针再跑门禁。
 
 ### 四期-B · 多图表真实化（**8–11 人日，估**；**2026-10-15 D7 裁决本轮不排**，整批封存待未来重排；重排开工前须裁 D8）
 
@@ -163,7 +171,7 @@
 
 | 批次 | 人日（估） | 依赖 | 出口判据 |
 |---|---|---|---|
-| 四期-A | 1–1.5 | 无 | 15 行过期结论全部带出处标注（**A1 已达成 2026-10-15**：UI 表 15 行 + FEATURE 表 2 行 = 17 行，其余行在表抬头写明「本轮未复核」——出口判据按实际核实范围收口，不用未取证结论充数）；`npm run check:bundle` 进 `verify`（**A2 已达成 2026-10-15**）；OPEN 机制行关闭（A3，待做） |
+| 四期-A | 1–1.5 | 无 | **三项全部达成（2026-10-15，批次收口）**：15 行过期结论带出处标注（A1：UI 15 行 + FEATURE 2 行 = 17 行，未核实行在抬头写明「本轮未复核」）；`npm run check:bundle` 进 `verify`（A2）；OPEN 机制行关闭并附 46 变体实验数据 + 一条禁写法口径（A3） |
 | 四期-E1 | 0.5–1 | 无 | 「回放中画线」成为被测事实（E2E 例数增加、`--retries=0` 全绿） |
 | 四期-C | 4–6 | 无（C1/C5 需黄金面重基线流程） | §1.3 表逐条处置或明确不做；像素项有新基线评审记录 |
 | 四期-E2 | 1–1.5 | **已裁（D10 = 做）** | 盈亏数字含费口径入册；设置项与计算接入有变异测试支撑 |
