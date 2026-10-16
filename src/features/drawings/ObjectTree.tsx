@@ -52,10 +52,20 @@ export function ObjectTree({ renderer, onClose }: ObjectTreeProps) {
           )}
         </strong>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button style={btn} onClick={() => renderer.undoDrawing()} title="撤销 (Ctrl+Z)">
+          <button
+            style={renderer.canUndo ? btn : btnOff}
+            disabled={!renderer.canUndo}
+            onClick={() => renderer.undoDrawing()}
+            title="撤销 (Ctrl+Z)"
+          >
             <Undo2 size={icon.md} />
           </button>
-          <button style={btn} onClick={() => renderer.redoDrawing()} title="重做 (Ctrl+Y)">
+          <button
+            style={renderer.canRedo ? btn : btnOff}
+            disabled={!renderer.canRedo}
+            onClick={() => renderer.redoDrawing()}
+            title="重做 (Ctrl+Y)"
+          >
             <Redo2 size={icon.md} />
           </button>
           <button style={btn} onClick={onClose} title="关闭">
@@ -253,6 +263,9 @@ const btn: React.CSSProperties = {
   fontSize: 11,
   cursor: 'pointer',
 };
+
+/** 置灰态（四期-C4b）：撤销/重做在无历史可复原时不可点 */
+const btnOff: React.CSSProperties = { ...btn, color: 'var(--text-faint)', cursor: 'default' };
 
 const miniBtn: React.CSSProperties = {
   background: 'none',

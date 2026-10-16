@@ -111,33 +111,43 @@ export function Tab({ value, active, children }: { value: string; active?: boole
 
 export function IconButton({
   active,
+  disabled,
+  loading,
   onClick,
   title,
   children,
 }: {
   active?: boolean;
+  /** 置灰且不吃点击（四期-C4b：复原/重做读引擎历史栈 `canUndo`/`canRedo`） */
+  disabled?: boolean;
+  /** 在途：图标匀速转圈、保持原色且不吃点击（重新加载读 `series.status`） */
+  loading?: boolean;
   onClick: () => void;
   title: string;
   children: React.ReactNode;
 }) {
+  const inert = disabled === true || loading === true;
   return (
     <Tooltip.Root>
       <Tooltip.Trigger asChild>
         <button
           onClick={onClick}
+          disabled={inert}
           aria-label={title}
           aria-pressed={active}
+          aria-busy={loading}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             width: control.iconBtn,
             height: control.h,
-            background: active ? 'var(--accent)' : 'transparent',
-            color: active ? 'var(--text-on-accent)' : 'var(--text-dim)',
+            background: !inert && active ? 'var(--accent)' : 'transparent',
+            // 降色只跟 disabled：在途态靠转圈表态，若一起降色就与「不可用」无法区分
+            color: disabled === true ? 'var(--text-faint)' : active ? 'var(--text-on-accent)' : 'var(--text-dim)',
             border: 'none',
             borderRadius: radius.sm,
-            cursor: 'pointer',
+            cursor: inert ? 'default' : 'pointer',
           }}
           onMouseEnter={(e) => {
             if (!active) e.currentTarget.style.background = 'var(--panel-2)';
@@ -146,7 +156,13 @@ export function IconButton({
             if (!active) e.currentTarget.style.background = 'transparent';
           }}
         >
-          {children}
+          {loading ? (
+            <span className="spin" style={{ display: 'flex' }}>
+              {children}
+            </span>
+          ) : (
+            children
+          )}
         </button>
       </Tooltip.Trigger>
       <Tooltip.Portal>

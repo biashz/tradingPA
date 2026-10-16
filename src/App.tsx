@@ -214,7 +214,7 @@ export default function App() {
         <div
           style={{ width: '100vw', height: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}
         >
-          <TopBar rendererRef={rendererRef} series={series} barsCount={bars.length} onScreenshot={handleScreenshot} />
+          <TopBar renderer={renderer} series={series} barsCount={bars.length} onScreenshot={handleScreenshot} />
           {layout === 1 ? (
             <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
               <ChartWorkspace

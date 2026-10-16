@@ -618,3 +618,63 @@ describe('三期-C1 ChartRenderer 剪贴板 API', () => {
     expect(r.listDrawings()[1]!.levels).toEqual([0.25, 0.75]);
   });
 });
+
+/**
+ * 四期-C4b：`canUndo` / `canRedo` 读口在 ChartController 门面上的委托，以及置灰所依赖的
+ * 广播刷新时机。纯栈形态（含 50 层截断）见 `drawing-history-flags.test.ts`。
+ */
+describe('四期-C4b 复原/重做可用性读数（门面对面）', () => {
+  it('读数随落笔 / 撤销 / 重做翻转，且与画线集实际变化一致', () => {
+    const r = makeRenderer();
+    expect(r.canUndo).toBe(false);
+    expect(r.canRedo).toBe(false);
+
+    placeTrendline(r, 300, 300, 500, 400);
+    expect(r.listDrawings()).toHaveLength(1);
+    expect(r.canUndo).toBe(true);
+    expect(r.canRedo).toBe(false);
+
+    r.undoDrawing();
+    expect(r.listDrawings()).toHaveLength(0);
+    expect(r.canUndo).toBe(false);
+    expect(r.canRedo).toBe(true);
+
+    r.redoDrawing();
+    expect(r.listDrawings()).toHaveLength(1);
+    expect(r.canUndo).toBe(true);
+    expect(r.canRedo).toBe(false);
+  });
+
+  it('落笔与撤销都经 onDrawingsChanged 广播——置灰读数的刷新时机由此承担', () => {
+    const r = makeRenderer();
+    let notified = 0;
+    const off = r.onDrawingsChanged(() => notified++);
+
+    placeTrendline(r, 300, 300, 500, 400);
+    expect(notified).toBeGreaterThan(0);
+    const afterPlace = notified;
+
+    r.undoDrawing();
+    expect(notified).toBeGreaterThan(afterPlace);
+    off();
+  });
+
+  /** 登记过的现状（非本批立项）：空栈按下 undo 是 no-op，但仍广播一次。
+   *  读数不受影响（栈没变，canUndo 仍是 false），代价是一次白刷订阅者。 */
+  it('空栈按下仍广播一次，但读数与画线集都不动', () => {
+    const r = makeRenderer();
+    r.setActiveTool('hline');
+    click(300, 250);
+    r.setActiveTool(null);
+    r.undoDrawing();
+    expect(r.canUndo).toBe(false);
+
+    let notified = 0;
+    const off = r.onDrawingsChanged(() => notified++);
+    r.undoDrawing();
+    expect(notified).toBe(1);
+    expect(r.listDrawings()).toHaveLength(0);
+    expect(r.canUndo).toBe(false);
+    off();
+  });
+});

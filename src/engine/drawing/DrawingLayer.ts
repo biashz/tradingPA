@@ -207,6 +207,16 @@ export class DrawingLayer {
     this.drawings = drawings;
   }
 
+  /** 历史栈读数（四期-C4b）：UI 据此置灰复原/重做。只出布尔、不外露深度——
+   *  栈深上限 50 是本类的内部策略，不该成为跨边界的契约。 */
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
   undo(): void {
     const prev = this.undoStack.pop();
     if (!prev) return;

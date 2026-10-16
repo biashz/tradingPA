@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 /** DEV 调试句柄窄接口（Chart.tsx 在 dev 构建挂 window.__chartRenderer） */
 interface ChartRendererLike {
@@ -105,4 +105,77 @@ test('画线工具 flyout 交互与 TV 一致', async ({ page }) => {
   // 6) TV 热键 Alt+H 选水平线
   await page.keyboard.press('Alt+h');
   await expect(page.getByRole('button', { name: '水平线', exact: true })).toBeVisible();
+});
+
+/** 引擎历史栈读数 + 画线数量（四期-C4b 端到端用；同样只经 DEV 句柄的公开面） */
+interface HistoryLike {
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  listDrawings(): unknown[];
+}
+
+function readHistory(page: Page): Promise<{ canUndo: boolean; canRedo: boolean; n: number }> {
+  return page.evaluate(() => {
+    const c = (window as unknown as { __chartRenderer?: HistoryLike }).__chartRenderer;
+    if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
+    return { canUndo: c.canUndo, canRedo: c.canRedo, n: c.listDrawings().length };
+  });
+}
+
+/**
+ * 四期-C4b：顶栏「复原 / 重做」的置灰由引擎历史栈读数驱动，端到端钉整条链
+ * （栈 → `canUndo`/`canRedo` → `onDrawingsChanged` 广播 → React state → 原生 disabled）。
+ * 单测各自钉了一段（纯栈形态 / 门面委托 / 替身渲染），这段的意义是**真引擎与真 React 之间的
+ * 那根线**：把 `HistoryButtons` 的订阅摘掉或把读数写死，本用例即红。
+ */
+test('顶栏复原/重做置灰跟随引擎历史栈', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText(/[1-9][0-9,]* 根/)).toBeVisible({ timeout: 20_000 });
+
+  const undo = page.getByRole('button', { name: '复原', exact: true });
+  const redo = page.getByRole('button', { name: '重做', exact: true });
+  const canvas = page.locator('canvas').first();
+
+  // 空栈（重载后历史必为空，与是否有既存画线无关）：两颗都灰
+  const base = await readHistory(page);
+  expect(base.canUndo).toBe(false);
+  expect(base.canRedo).toBe(false);
+  await expect(undo).toBeDisabled();
+  await expect(redo).toBeDisabled();
+
+  // 落一条水平线：复原亮、重做仍灰，且 DOM 的置灰与引擎读数同向
+  await page.keyboard.press('Alt+h');
+  await canvas.click({ position: { x: 400, y: 300 } });
+  await expect(undo).toBeEnabled();
+  await expect(redo).toBeDisabled();
+  const afterPlace = await readHistory(page);
+  expect(afterPlace.n).toBe(base.n + 1);
+  expect({ undoDisabled: await undo.isDisabled(), redoDisabled: await redo.isDisabled() }).toEqual({
+    undoDisabled: !afterPlace.canUndo,
+    redoDisabled: !afterPlace.canRedo,
+  });
+
+  // 按复原：画线退回、重做接手——读数跟着广播回来，不停在首帧
+  await undo.click();
+  await expect(undo).toBeDisabled();
+  await expect(redo).toBeEnabled();
+  expect((await readHistory(page)).n).toBe(base.n);
+
+  // 按重做：回到「可复原、不可重做」
+  await redo.click();
+  await expect(undo).toBeEnabled();
+  await expect(redo).toBeDisabled();
+  expect((await readHistory(page)).n).toBe(base.n + 1);
+
+  // 同一读数的第二处消费者：对象树头部那颗原生按钮（无 aria-label，按 title 命中）
+  await page.getByRole('button', { name: '对象树' }).click();
+  const treeUndo = page.locator('button[title="撤销 (Ctrl+Z)"]');
+  const treeRedo = page.locator('button[title="重做 (Ctrl+Y)"]');
+  await expect(treeUndo).toBeEnabled();
+  await expect(treeRedo).toBeDisabled();
+  await treeUndo.click();
+  await expect(treeUndo).toBeDisabled();
+  await expect(treeRedo).toBeEnabled();
+  // 两处消费者读的是同一个栈：顶栏跟着退回「不可复原」
+  await expect(undo).toBeDisabled();
 });

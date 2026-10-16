@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
   Camera,
@@ -39,6 +39,7 @@ import { IndicatorPanel } from '@/features/indicators/IndicatorPanel';
 import { IconButton } from '@/ui/primitives';
 import { ToolbarSelect, type ToolbarOption } from '@/ui/ToolbarSelect';
 import { decimalsFor } from '@/data/format';
+import { isFeedBusy } from '@/data/feed/types';
 import { useNarrowViewport } from '@/hooks/useViewport';
 import { fontSize, icon, radius, space, zIndex } from '@/ui/tokens';
 
@@ -74,6 +75,41 @@ const CT_OPTIONS: ToolbarOption[] = CHART_TYPES.map((c) => ({
   label: c.label,
   group: c.timeBased ? '常规' : '特殊',
 }));
+
+/** 复原 / 重做（四期-C4b）：置灰读数取自引擎历史栈（`canUndo`/`canRedo`），随画线变更刷新。
+ *  刻意不读 rendererRef——渲染期读 ref 会触 React Compiler 的 refs 诊断，也拿不到「栈变了」这一事件。 */
+export function HistoryButtons({ renderer }: { renderer: ChartRenderer | null }) {
+  const [flags, setFlags] = useState({ undo: false, redo: false });
+  useEffect(() => {
+    if (!renderer) return;
+    const sync = () => setFlags({ undo: renderer.canUndo, redo: renderer.canRedo });
+    sync();
+    return renderer.onDrawingsChanged(sync);
+  }, [renderer]);
+  return (
+    <>
+      <IconButton disabled={!flags.undo} onClick={() => renderer?.undoDrawing()} title="复原">
+        <Undo2 size={icon.lg} />
+      </IconButton>
+      <IconButton disabled={!flags.redo} onClick={() => renderer?.redoDrawing()} title="重做">
+        <Redo2 size={icon.lg} />
+      </IconButton>
+    </>
+  );
+}
+
+/** 重新加载（四期-C4b）：在途态由 `series.status` 承载，转圈期间拒绝重复点击 */
+export function ReloadButton({ series }: { series: ChartSeries }) {
+  return (
+    <IconButton
+      loading={isFeedBusy(series.status)}
+      onClick={series.reload}
+      title={series.mode === 'mock' ? '重新连接实时数据' : '重新加载历史数据'}
+    >
+      <RefreshCw size={icon.lg} />
+    </IconButton>
+  );
+}
 
 function ThemeButton() {
   const name = useThemeStore((s) => s.name);
@@ -143,13 +179,14 @@ function CompareButton() {
 }
 
 export function TopBar({
-  rendererRef,
+  renderer,
   series,
   barsCount,
   onScreenshot,
 }: {
-  /** 主图 renderer（复原/重做用；多图表布局下为 null） */
-  rendererRef: { current: ChartRenderer | null };
+  /** 主图 renderer（复原/重做用；多图表布局下为 null）；四期-C4b 起改收 state 值而非 ref
+   *  ——置灰读数必须在 effect 里订阅，渲染期读 ref 会触 React Compiler 的 refs 诊断。 */
+  renderer: ChartRenderer | null;
   series: ChartSeries;
   barsCount: number;
   /** 生成快照（App 持有：命令面板与快捷键共用同一下发） */
@@ -239,16 +276,7 @@ export function TopBar({
         )}
       </div>
       <span style={{ flex: 1 }} />
-      {layout === 1 && !narrow && (
-        <>
-          <IconButton onClick={() => rendererRef.current?.undoDrawing()} title="复原">
-            <Undo2 size={icon.lg} />
-          </IconButton>
-          <IconButton onClick={() => rendererRef.current?.redoDrawing()} title="重做">
-            <Redo2 size={icon.lg} />
-          </IconButton>
-        </>
-      )}
+      {layout === 1 && !narrow && <HistoryButtons renderer={renderer} />}
       <LayoutSaveMenu />
       <LayoutMenu />
       <IconButton onClick={() => useUiStore.getState().setChartSettingsOpen(true)} title="图表设置">
@@ -273,11 +301,7 @@ export function TopBar({
           <Camera size={icon.lg} />
         </IconButton>
       )}
-      {layout === 1 && (
-        <IconButton onClick={series.reload} title={series.mode === 'mock' ? '重新连接实时数据' : '重新加载历史数据'}>
-          <RefreshCw size={icon.lg} />
-        </IconButton>
-      )}
+      {layout === 1 && <ReloadButton series={series} />}
       <ThemeButton />
     </div>
   );

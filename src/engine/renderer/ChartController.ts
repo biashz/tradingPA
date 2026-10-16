@@ -819,6 +819,15 @@ export class ChartController {
     this.notifyDrawings();
     this.invalidate();
   }
+  /** 复原/重做可用性读数（四期-C4b，additive）：TopBar 与对象树据此置灰按钮。
+   *  刷新时机由既有的 onDrawingsChanged 承担——下面两个写口都无条件广播，
+   *  故栈的每一次增减（含空栈 no-op）都会把读数带到 UI。 */
+  get canUndo(): boolean {
+    return this.drawing.layer.canUndo;
+  }
+  get canRedo(): boolean {
+    return this.drawing.layer.canRedo;
+  }
   undoDrawing(): void {
     this.drawing.layer.undo();
     this.notifyDrawings();

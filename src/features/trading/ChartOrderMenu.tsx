@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useOrderMenuStore } from '@/store/orderMenuStore';
 import { useTradeSettingsStore } from '@/store/tradeSettingsStore';
 import { useTradeStore } from './tradeStore';
-import { radius } from '@/ui/tokens';
+import { radius, shadow } from '@/ui/tokens';
 
 /** 图表点击下单浮窗（TV 风格）：市价/限价 + 买/卖 + 数量 + 价格
  *  关闭时整棵表单子树卸载，故每次打开都按当前交易偏好重新播种数量初值（三期-B2）。 */
@@ -145,7 +145,7 @@ const menuStyle: React.CSSProperties = {
   border: '1px solid var(--border)',
   borderRadius: radius.lg,
   padding: 12,
-  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.35)',
+  boxShadow: shadow.menu,
   zIndex: 41,
 };
 

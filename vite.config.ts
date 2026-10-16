@@ -63,6 +63,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['tests/**/*.test.ts'],
+    // tsx 供需要 JSX 的渲染用例（四期-C4b 起：套 Radix Provider 时必须用 JSX 传 children）
+    include: ['tests/**/*.test.{ts,tsx}'],
   },
 });

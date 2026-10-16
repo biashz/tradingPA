@@ -189,12 +189,125 @@ const trendline = (page: Page, a: [number, number], b: [number, number]) =>
     .then(() => canvasOf(page).click({ position: { x: a[0], y: a[1] } }))
     .then(() => canvasOf(page).click({ position: { x: b[0], y: b[1] } }));
 
-/** 未来 bar 的 time 单调；取 time ≤ 锚点的最后一根。调用方须先证明表格覆盖到了锚点，
- *  否则末行会冒充命中（`covers` 即为此而设） */
+/** 未来 bar 的 time 单调；取 time ≤ 锚点的最后一根。序列末之右的 index 会被 dataWindow 钳成
+ *  「重复的最后一根」（探针读数：游标 768、距末根 ≈105 根、揭示 cursor+400 仍得 400 行），
+ *  所以越过末根的锚点拿到的就是那最后一根——这正是钳位现状要的形状 */
 const rowAtOrBefore = (table: RevealRow[], time: number) =>
   table.filter((r) => r.bar.time <= time).slice(-1)[0] ?? null;
-const covers = (table: RevealRow[], time: number) => table.length > 0 && table[table.length - 1].bar.time >= time;
 const inOhlc = (price: number, bar: EngBar) => [bar.open, bar.high, bar.low, bar.close].includes(price);
+
+/** 揭示到序列末所需的根数（+2：末根那行重复一次，保证表格末行就是末根） */
+function futureSpan(cursorTime: number, lastBarTime: number, iv: number): number {
+  const span = Math.ceil((lastBarTime - cursorTime) / iv) + 2;
+  expect(span, `揭示窗口须有界（cursorTime=${cursorTime} lastBarTime=${lastBarTime} iv=${iv}）`).toBeLessThanOrEqual(
+    2000,
+  );
+  return span;
+}
+
+/**
+ * 锚点落在「游标之右、序列末 + 1 根」这条带内。
+ * 替掉的是旧判据 `covers(table, time)`——它假设表格盖得到锚点，而 `coords.ts:43-51` 在
+ * `roundIdx` 恰为末根时给的是「末根 time + 小数×iv」，锚点**合法地**越过末根，于是 `covers`
+ * 红得与画线行为无关（2026-10-16 `--repeat-each=3/4` 各抓到一次，读数同点）。
+ * 「末行冒充命中」这个旧 `covers` 想防的洞改由两处一起堵：表格按 `futureSpan` 揭示到末根，
+ * 加上这里带上界。
+ */
+function assertInFutureBand(
+  time: number,
+  p: { cursorTime: number; lastBarTime: number; iv: number },
+  label: string,
+): void {
+  expect(time, `${label}：应在游标之右（cursorTime=${p.cursorTime}）`).toBeGreaterThan(p.cursorTime);
+  expect(
+    time,
+    `${label}：不该越过序列末一根 bar 以上（lastBarTime=${p.lastBarTime}、iv=${p.iv}、上界=${p.lastBarTime + p.iv}）`,
+  ).toBeLessThanOrEqual(p.lastBarTime + p.iv);
+}
+
+/** 落一次笔、回读这根、随即删掉它（数量须回到落笔前）——采样不留对象，故同 y 可反复使用 */
+async function sampleFree(page: Page, x: number, y: number): Promise<FlatDrawing> {
+  const before = await read(page);
+  await hline(page, x, y);
+  const list = (await read(page)).drawings;
+  expect(
+    list.length,
+    `自由落点未新增画线（${before.drawings.length} → ${list.length}，x=${x} y=${y}）——多半是命中了已有对象`,
+  ).toBe(before.drawings.length + 1);
+  const d = list[list.length - 1];
+  await removeDrawing(page, d.id);
+  expect((await read(page)).drawings.length, `采样线 ${d.id} 未删除干净`).toBe(before.drawings.length);
+  return d;
+}
+
+/**
+ * 磁吸关的「小数位置精度」（`coords.ts` 的 `magnet === 'off'` 分支：time = 该根 time + 小数偏移 × iv）。
+ *
+ * 量法是**先复位游标、再扫一批 x 采样**，不是先标定 bar 像素宽。像素标定没有公开读口：
+ * `dataWindowSnapshot.index` 只在鼠标正悬停时才是像素读数，`parkMouse` 后即回落到回放游标，
+ * 而空点图表也不移动游标（那要先把回放工具装上）——旧版拿相隔 100px 的两次空点反推 barW，
+ * 两次都读回同一个游标根（767），标定当场失败。
+ *
+ * 采样改用只依赖表格 `iv` 的量：frac = ((time − t0)/iv) 的小数部分。小数精度为真 ⇒ 必有采样
+ * 落在两根 bar 之间（frac ≠ 0）；量成 bar 网格 ⇒ 每个 frac 恒为 0。全程不碰像素几何，
+ * 所以可视区宽窄、此刻加载了多少根都翻不了它的脸。
+ *
+ * 三处会被现状翻脸的地方，都在这儿处理：
+ * 1) **复位**：`revealForward` 把游标推到 +240 且可视区跟着滚，复位前 x=620 早已越过序列末，
+ *    每个落点都钳到最后一根（实测 10 次得到同一个 1792134000000，2026-10-16 全量 E2E 首现翻红即此）；
+ * 2) **钳位样本另计**：钳位的 frac 也归 0，与「量成网格」同形，故用公开 `lastBarTime` 挑出来，
+ *    只在序列内样本里找 frac；整批皆钳位则带全部读数失败。「越过序列末钳到最后一根」本身
+ *    另有用例钉现状（下方「游标之右越过序列末的点击」），本函数不替它表态；
+ * 3) **未来区按时钟判**：复位后可视区怎么滚是不可知的，x=540 可能落在游标之左，
+ *    故 `future` 用复位后重读的 `cursorBarTime` 判，不看像素。
+ * 每条采样画完即删（`sampleFree`）：水平线横贯整个宽度，同 y 的第二次落笔会命中上一根线。
+ */
+async function assertSubBarPrecision(page: Page, table: RevealRow[], restoreTo: number, y: number) {
+  const iv = table[1].bar.time - table[0].bar.time;
+  const t0 = table[0].bar.time;
+  await setCursor(page, restoreTo);
+  await parkMouse(page); // 复位游标 + 清空悬停：这样 cursorBarTime 读到的才是游标根，而不是上一动作留下的悬停根
+  const cursorTime = await cursorBarTime(page);
+  const lastBarTime = (await read(page)).lastBarTime;
+
+  const samples: Array<{ x: number; drawing: FlatDrawing; frac: number; clamped: boolean; future: boolean }> = [];
+  for (let i = 0; i < 8; i++) {
+    const x = 540 + i * 36;
+    const d = await sampleFree(page, x, y);
+    const rel = (d.time - t0) / iv;
+    samples.push({
+      x,
+      drawing: d,
+      frac: rel - Math.floor(rel),
+      clamped: d.time >= lastBarTime,
+      future: d.time > cursorTime,
+    });
+  }
+
+  const readings = JSON.stringify(
+    samples.map((s) => ({
+      x: s.x,
+      time: s.drawing.time,
+      frac: +s.frac.toFixed(4),
+      clamped: s.clamped,
+      future: s.future,
+    })),
+  );
+  expect(
+    samples.some((s) => !s.clamped),
+    `8 个采样点全被钳到序列末（lastBarTime=${lastBarTime}，游标根=${cursorTime}）：${readings}`,
+  ).toBe(true);
+  const offGrid = samples.filter((s) => !s.clamped && s.frac > 1e-6 && s.frac < 1 - 1e-6);
+  expect(
+    offGrid.length,
+    `序列内采样点应至少有两个落在两根 bar 之间（量成 bar 网格则 frac 恒为 0）：${readings}`,
+  ).toBeGreaterThan(1);
+  const futureOff = offGrid.filter((s) => s.future);
+  expect(futureOff.length, `上述 off-grid 采样里须有落在游标之右的未来区：${readings}`).toBeGreaterThan(0);
+  await parkMouse(page); // 采样把鼠标留在画布上，数据窗口会读悬停根而不是游标根（下游 cursorBarTime 依赖清空）
+  await setCursor(page, restoreTo);
+  return futureOff[futureOff.length - 1].drawing;
+}
 
 test('回放中画线不限左右：游标之右的锚点落在未揭示的未来 bar 上，且游标推进不移动锚点', async ({ page }) => {
   await boot(page);
@@ -213,17 +326,21 @@ test('回放中画线不限左右：游标之右的锚点落在未揭示的未�
   expect(s.drawings[0].time).toBeLessThan(cursorTime);
   expect(s.drawings[1].time).toBeGreaterThan(cursorTime);
 
-  const table = await revealForward(page, cursorIndex + 1, cursorIndex + 60);
-  expect(covers(table, s.drawings[1].time), '揭示表格须覆盖到右锚点').toBe(true);
+  // 揭示窗口按读数给到序列末（探针实测游标 768 时距末根 ≈105 根，写死 240 只是够长；
+  // 真正会翻脸的是判据 `covers`，改法见 assertInFutureBand 的注释）
+  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
+  const table = await revealForward(
+    page,
+    cursorIndex + 1,
+    cursorIndex + futureSpan(cursorTime, start.lastBarTime, iv0),
+  );
+  assertInFutureBand(s.drawings[1].time, { cursorTime, lastBarTime: start.lastBarTime, iv: iv0 }, '右锚点');
   const future = rowAtOrBefore(table, s.drawings[1].time);
   expect(future, '右锚点应落在游标之右的某根未来 bar 上').not.toBeNull();
   expect(future!.index).toBeGreaterThan(cursorIndex);
-  // 磁吸关时落点时刻是两根 bar 之间的插值（`coords.ts` 的 `magnet === 'off'` 分支），
-  // 故锚点不等于任何一根 bar 的 time——这条也必须钉住，否则日后改成对齐 bar 会无人察觉
-  expect(
-    table.some((r) => r.bar.time === s.drawings[1].time),
-    '未开磁吸时锚点不该正落在某根 bar 上',
-  ).toBe(false);
+  // 磁吸关时落点带半根 bar 的小数精度（`coords.ts` 的 `magnet === 'off'` 分支）——
+  // 这条必须钉住，否则日后改成对齐 bar 会无人察觉；量法见 assertSubBarPrecision
+  await assertSubBarPrecision(page, table, cursorIndex, 360);
 
   // 锚点是 time 制：把游标推到锚点左侧那根，线不跟着走
   const before = s.drawings[1];
@@ -237,7 +354,9 @@ test('回放中画线不限左右：游标之右的锚点落在未揭示的未�
 test('磁吸开：在游标之右画线会吸附到那根未揭示 bar 的 OHLC（未来价读数泄露）；磁吸关为对照', async ({ page }) => {
   await boot(page);
   await enterReplay(page, 500, 300);
-  const cursorIndex = (await read(page)).replayIndex!;
+  const start = await read(page);
+  const cursorIndex = start.replayIndex!;
+  const cursorTime = await cursorBarTime(page); // 此刻鼠标已 park，读到的就是游标根
 
   // 强磁铁：始终吸附（弱档只在 50px 内生效，会把取证变成碰运气）
   await page.getByRole('button', { name: '磁吸', exact: true }).click();
@@ -250,30 +369,32 @@ test('磁吸开：在游标之右画线会吸附到那根未揭示 bar 的 OHLC�
 
   await hline(page, 620, 330);
   const magnetLine = (await read(page)).drawings.slice(-1)[0];
-  const table = await revealForward(page, cursorIndex + 1, cursorIndex + 60);
-  expect(covers(table, magnetLine.time), '揭示表格须覆盖到磁吸锚点').toBe(true);
+  // 表格含游标当前根：磁吸关的对照落点可能就在「游标根 ↔ 下一根」之间，
+  // 从 +1 起建表会让 rowAtOrBefore 读空（2026-10-16 翻红即此，与精度无关）
+  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
+  const band = { cursorTime, lastBarTime: start.lastBarTime, iv: iv0 };
+  const table = await revealForward(page, cursorIndex, cursorIndex + futureSpan(cursorTime, start.lastBarTime, iv0));
+  assertInFutureBand(magnetLine.time, band, '磁吸锚点');
   const magnetBar = rowAtOrBefore(table, magnetLine.time);
   expect(magnetBar, '磁吸落点应锚在未来 bar 上').not.toBeNull();
+  expect(magnetBar!.index, '吸附的那根须在游标之右（表格含游标当前根，故这条要显式钉住）').toBeGreaterThan(cursorIndex);
   expect(magnetBar!.bar.time, '磁吸开时锚点时刻正落在该 bar 上').toBe(magnetLine.time);
   expect(
     inOhlc(magnetLine.price, magnetBar!.bar),
     `吸附价 ${magnetLine.price} 应等于该未来 bar 的 OHLC 之一（用户此刻看不到这些数字）`,
   ).toBe(true);
 
-  // 对照：磁吸关，同区域再画一条 → 既不正落在 bar 上、价格也不命中任何 OHLC
-  //（证明上一条的相等来自磁吸而非巧合）
+  // 对照：磁吸关。两条判据合起来证明上一条的相等来自磁吸而非巧合——
+  // 时间侧用「相差半根 bar 的两点」量小数精度（旧的「锚点 ≠ 任何 bar.time」会被序列末端钳位翻脸），
+  // 价格侧仍要求自由落点命不中任何 OHLC
   await page.getByRole('button', { name: '磁吸', exact: true }).click();
   expect(await page.getByRole('button', { name: '磁吸', exact: true }).getAttribute('aria-pressed')).toBe('false');
 
-  await hline(page, 700, 340);
-  const plainLine = (await read(page)).drawings.slice(-1)[0];
+  const plainLine = await assertSubBarPrecision(page, table, cursorIndex, 400);
   expect(plainLine.id).not.toBe(magnetLine.id);
+  assertInFutureBand(plainLine.time, band, '磁吸关的对照落点');
   const plainBar = rowAtOrBefore(table, plainLine.time);
   expect(plainBar, '对照落点也该在未来区').not.toBeNull();
-  expect(
-    table.some((r) => r.bar.time === plainLine.time),
-    '磁吸关时锚点时刻应是两根 bar 之间的插值',
-  ).toBe(false);
   expect(inOhlc(plainLine.price, plainBar!.bar), `自由落点价 ${plainLine.price} 不该命中 OHLC`).toBe(false);
 });
 
@@ -341,7 +462,8 @@ test('游标之右越过序列末的点击：锚点钳到最后一根 bar 的时
 test('未来空白区真的被绘制：游标之右落笔的线在该列画出笔画色（移除后归零为对照）', async ({ page }) => {
   await boot(page);
   await enterReplay(page, 500, 300);
-  const cursorIndex = (await read(page)).replayIndex!;
+  const start = await read(page);
+  const cursorIndex = start.replayIndex!;
   const cursorTime = await cursorBarTime(page);
 
   await hline(page, 650, 320);
@@ -372,10 +494,17 @@ test('未来空白区真的被绘制：游标之右落笔的线在该列画出�
 
   await trendline(page, [640, 250], [760, 360]); // 两端都在游标之右
   const t = (await read(page)).drawings.slice(-1)[0];
+  const lastBarTime = (await read(page)).lastBarTime;
   expect(t.type).toBe('trendline');
   expect(t.points).toBe(2);
-  expect(t.time).toBeGreaterThan(cursorTime);
-  const table = await revealForward(page, cursorIndex + 1, cursorIndex + 80);
-  expect(covers(table, t.time), '揭示表格须覆盖到趋势线首锚').toBe(true);
-  expect(rowAtOrBefore(table, t.time), '首锚点应是未揭示的未来 bar').not.toBeNull();
+  // 首锚点须是「游标之右、序列末 +1 根」带内的某根真实未来 bar。
+  // 旧判据 `covers(table, t.time)` 会红得与画线无关：表格按写死的根数建，而 x=640 落在第几根
+  // 由此刻加载了多少根决定，落点还可能合法地越过末根一根（`coords.ts:43-51` 的小数项）——
+  // 2026-10-16 `--repeat-each=3/4` 各抓到一次同点翻红。改法见 futureSpan / assertInFutureBand。
+  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
+  assertInFutureBand(t.time, { cursorTime, lastBarTime, iv: iv0 }, '趋势线首锚');
+  const table = await revealForward(page, cursorIndex + 1, cursorIndex + futureSpan(cursorTime, lastBarTime, iv0));
+  const first = rowAtOrBefore(table, t.time);
+  expect(first, '首锚点应是未揭示的未来 bar').not.toBeNull();
+  expect(first!.index).toBeGreaterThan(cursorIndex);
 });
