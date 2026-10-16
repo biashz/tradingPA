@@ -347,8 +347,12 @@ test('未来空白区真的被绘制：游标之右落笔的线在该列画出�
   expect(hits, `未来空白区应渲染出这条 ${color} 的线`).toBeGreaterThan(0);
 
   await removeDrawing(page, s.drawings[0].id);
-  await page.waitForTimeout(120);
-  expect(await columnHits(page, color, 700), '对照：移除后该列不该留有线色').toBe(0);
+  // 对照断言用 poll 而不是固定 sleep：`removeDrawing` 只改模型，重绘走 invalidate → rAF，
+  // 机器忙时 120ms 内那一帧还没跑，读到的仍是移除前的像素（实测整条水平线在该列剩 1 个命中，
+  // 正是「线还在」而非「画了一半」）。poll 等的是同一条不变量成立，断言强度不降。
+  await expect
+    .poll(() => columnHits(page, color, 700), { message: '对照：移除后该列不该留有线色', timeout: 5_000 })
+    .toBe(0);
 
   await trendline(page, [640, 250], [760, 360]); // 两端都在游标之右
   const t = (await read(page)).drawings.slice(-1)[0];
