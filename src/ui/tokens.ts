@@ -61,6 +61,12 @@ export const zIndex = {
   panel: 16,
   dropdown: 30,
   modal: 60,
+  /** 对话框内的下拉菜单：必须压在 modal 壳之上才能点。
+   *  探针读数（改前）：菜单 z=30、对话框 z=60 ⇒ 打开的菜单项 `elementFromPoint` 命中的是
+   *  遮罩层（hitInsideMenu=false），Playwright 报「`<div data-state="open" aria-hidden="true">`
+   *  intercepts pointer events」。`dropdown` 不能整体上移——它还承着侧栏/图例等
+   *  与对话框无关的浮层次序；故单开一层，只给「会出现在 Dialog 里」的下拉用。 */
+  menu: 61,
   toast: 70,
 } as const;
 

@@ -13,6 +13,8 @@ interface ToolbarSelectProps {
   options: ToolbarOption[];
   onChange: (value: string) => void;
   ariaLabel: string;
+  /** 原生悬停提示；`ariaLabel` 读给屏幕阅读器，两者用途不同故都保留（四期-C4c：`ReplayBar` 的「播放倍速」原本就挂 title） */
+  title?: string;
   /** 触发器图标 */
   icon?: React.ReactNode;
   /** 触发器文案；缺省显示当前选项 */
@@ -27,6 +29,7 @@ export function ToolbarSelect({
   options,
   onChange,
   ariaLabel,
+  title,
   icon,
   label,
   align = 'start',
@@ -44,7 +47,7 @@ export function ToolbarSelect({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button className="tv-icon-btn" style={triggerStyle} aria-label={ariaLabel}>
+        <button className="tv-icon-btn" style={triggerStyle} aria-label={ariaLabel} title={title}>
           {icon}
           <span style={{ maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {label ?? current?.label ?? value}
@@ -97,7 +100,7 @@ const menuStyle: React.CSSProperties = {
   border: '1px solid var(--border)',
   borderRadius: radius.md,
   padding: '4px 0',
-  zIndex: zIndex.dropdown,
+  zIndex: zIndex.menu,
   boxShadow: shadow.menu,
 };
 
