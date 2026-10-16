@@ -26,6 +26,10 @@ export interface CursorInput {
   drawingHoverCursor: string;
   /** 是否悬停交易可视化元素 */
   tradeHover: boolean;
+  /** 是否悬停价格轴「+」入口（四期-C2）。可选：缺省 = 否，保持轴区 ns-resize 旧行为。
+   *  判定顺序必须与按下路由一致（InputController：分隔条 → 轴内「自动」→「+」→ 价格拖拽），
+   *  光标才与点击实际做的事同构。 */
+  priceScalePlusHover?: boolean;
 }
 
 /** TV 光标语义：面板分隔条与价格轴 ns-resize，时间轴 ew-resize，可交互元素 pointer。
@@ -33,7 +37,9 @@ export interface CursorInput {
  *  价格轴随轴侧：右轴 = 图表区右缘右侧，左轴 = 图表区左边界左侧（chartLeft）。 */
 export function decideCursor(input: CursorInput): string {
   if (input.separatorIndex !== null) return 'ns-resize';
-  if (input.x > input.chartRight || input.x < (input.chartLeft ?? 0)) return 'ns-resize';
+  if (input.x > input.chartRight || input.x < (input.chartLeft ?? 0)) {
+    return input.priceScalePlusHover ? 'pointer' : 'ns-resize';
+  }
   if (input.y > input.chartBottom) return 'ew-resize';
   if (input.studyHoverBtn !== null) return 'pointer';
   if (input.drawingHoverCursor) return input.drawingHoverCursor;

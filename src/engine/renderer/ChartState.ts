@@ -17,7 +17,15 @@ import { DEFAULT_LEGEND_OPTIONS, type LegendOptions, type StudyLegendRect } from
 import type { GridMode } from './drawAxes';
 import { IndicatorManager } from './IndicatorManager';
 import { DEFAULT_VP_PARAMS, VolumeProfileModel, coerceVpParams } from '../profile/volumeProfile';
-import { PANE_GAP, DEFAULT_PRICE_AXIS_POS, createPane, type PaneState, type PriceAxisPos } from './chartPanes';
+import {
+  PANE_GAP,
+  DEFAULT_PRICE_AXIS_POS,
+  createPane,
+  priceScalePlusRect as priceScalePlusRectOf,
+  type AxisHitRect,
+  type PaneState,
+  type PriceAxisPos,
+} from './chartPanes';
 import { type VolumeProfileRuntime, bindVpRuntime } from './chartVp';
 
 export {
@@ -93,8 +101,28 @@ export class ChartState {
   barSelectMode = false;
   /** 选择K线预览线 x（跟随光标，选中后清除） */
   selectPreviewX: number | null = null;
+  /** 光标在价格轴条内的画布 y（null = 不在轴上）；「+」入口跟随它落位（四期-C2） */
+  priceScaleHoverY: number | null = null;
   /** 研究图例行命中区（drawLegendBlock 回写，输入层读取） */
   studyRects: StudyLegendRect[] = [];
+
+  /**
+   * 「+」入口本帧矩形（画布坐标；null = 不绘制）。绘制、命中、光标三处只走这里，
+   * 使三者必然同帧同几何——轴内小部件此前只有 autoBtn 一处先例，它用「绘制回写」
+   * （宽度依赖 measureText），「+」尺寸固定，故改为纯函数就地派生、零帧延迟。
+   */
+  priceScalePlusRect(): AxisHitRect | null {
+    const main = this.panes[0];
+    if (!main) return null;
+    return priceScalePlusRectOf({
+      hoverY: this.priceScaleHoverY,
+      axisPos: this.priceAxisPos,
+      chartW: this.chartW(),
+      paneY: main.y,
+      paneHeight: main.height,
+      autoBtn: main.autoBtn,
+    });
+  }
 
   /** 指标生命周期（拆分④：pane 数组操作独立成模块） */
   readonly indicators: IndicatorManager;

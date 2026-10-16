@@ -6,6 +6,7 @@ import type { StudyLegendRect } from './drawCrosshair';
 import { decideCursor, hoverStudyRow } from './cursor';
 import type { DrawingGesture } from './DrawingGesture';
 import type { TradeGesture } from './TradeGesture';
+import { hitAxisRect, type AxisHitRect } from './chartPanes';
 
 /**
  * 悬停控制器（D 批次拆分③；架构映射：ChartRenderer updateCrosshair / updateHoverCursor
@@ -41,6 +42,9 @@ export interface HoverHost {
   setHoveredPane(id: string): void;
   setSelectPreviewX(x: number | null): void;
   barSelectMode(): boolean;
+  /** 价格轴「+」入口本帧矩形（画布坐标；null = 未绘制）。可选：缺省 = 无「+」，
+   *  旧宿主（测试替身等）保持轴区 ns-resize */
+  priceScalePlusRect?(): AxisHitRect | null;
   /** 联动：发布本地十字光标时间 */
   publishCrosshairTime(time: number | null): void;
   invalidate(): void;
@@ -89,6 +93,7 @@ export class HoverController {
    *  决策纯函数在 cursor.ts；此处只装配输入、写 DOM（带 dirty check）。
    *  入参 x 为画布坐标（价格轴命中随轴侧由 decideCursor 的 chartLeft 判定）。 */
   updateHoverCursor(x: number, y: number): void {
+    const plus = this.host.priceScalePlusRect?.() ?? null;
     const cursor = decideCursor({
       x,
       y,
@@ -99,6 +104,7 @@ export class HoverController {
       studyHoverBtn: this.studyBtn,
       drawingHoverCursor: this.drawing.hoverCursor,
       tradeHover: this.trade.hoverCursor,
+      priceScalePlusHover: plus !== null && hitAxisRect(plus, x, y),
     });
     const canvas = this.host.canvas;
     if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor;

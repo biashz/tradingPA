@@ -82,6 +82,8 @@ export class ChartController {
   private contextMenuCb: ((price: number, time: number, clientX: number, clientY: number) => void) | null = null;
   private paneActionCb: ((action: 'settings' | 'remove', indicatorId: string) => void) | null = null;
   private barSelectCb: ((index: number) => void) | null = null;
+  /** 价格轴「+」入口点击（四期-C2）：引擎只报该处价格，建警报在 React 层 */
+  private priceScalePlusCb: ((price: number) => void) | null = null;
   /** 引擎 → store 的参数写回通道（P2-D③：AVWAP 落锚后把 anchorTime 写回 indicatorStore，
    *  仿 setXxxCallback 家族由 Chart.tsx 注册；store 为意图源、renderer 为实例源） */
   private indicatorParamsCb: ((uid: string, params: Record<string, ParamValue>) => void) | null = null;
@@ -139,6 +141,17 @@ export class ChartController {
       publishViewport: () => this.sync.publishViewport(),
       publishCrosshairTime: (t) => this.sync.publishCrosshairTime(t),
       selectPane: (id) => (this.state.selectedPaneId = id),
+      // 「+」入口的悬停 y：写入即重绘（三处调用点：轴内移动 / 轴内按下 / 离开画布）。
+      // 值不变就不重绘：pointermove 每帧写这个口，图表区内移动时是 null→null，
+      // 无守卫会让每次移动多调一次 invalidate，打破三期-C2 立下的「invalidate 是唯一挂点」契约
+      // （data-window-broadcast 单测按次数断言）。按下与离开两条路径仍需重绘，
+      // 否则「+」要滞留到下一次移动才消失。
+      setPriceScaleHoverY: (y) => {
+        if (this.state.priceScaleHoverY === y) return;
+        this.state.priceScaleHoverY = y;
+        this.invalidate();
+      },
+      priceScalePlusRect: () => this.state.priceScalePlusRect(),
       setHoveredPane: (id) => (this.state.hoveredPaneId = id),
       setSelectPreviewX: (x) => (this.state.selectPreviewX = x),
       studyRects: () => this.state.studyRects,
@@ -164,6 +177,7 @@ export class ChartController {
       drawingMenuCb: () => this.drawingMenuCb,
       drawingSettingsCb: () => this.drawingSettingsCb,
       priceLineDblClickCb: () => this.priceLineDblClickCb,
+      priceScalePlusCb: () => this.priceScalePlusCb,
     };
     this.panzoom = new PanZoomGesture(inputHost);
     this.drawing = new DrawingGesture(inputHost, this.selectionPopup);
@@ -525,6 +539,11 @@ export class ChartController {
   }
   setContextMenuCallback(cb: ((price: number, time: number, clientX: number, clientY: number) => void) | null): void {
     this.contextMenuCb = cb;
+  }
+
+  /** 注册价格轴「+」入口点击回调（TV 跟随光标建警报；入参为该处的价格，四期-C2） */
+  setPriceScaleAlertCallback(cb: ((price: number) => void) | null): void {
+    this.priceScalePlusCb = cb;
   }
 
   /** 重置视图：恢复自动价格适配并让最新 K 线贴右 */

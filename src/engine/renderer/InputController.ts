@@ -11,7 +11,7 @@ import type { DrawingGesture, DrawingHost } from './DrawingGesture';
 import type { TradePane, TradeGesture, TradeHost } from './TradeGesture';
 import type { HoverController, HoverHost } from './HoverController';
 import { selectStudyAt, type SelectionPopupTracker } from './hitTestIndicator';
-import type { PriceAxisPos } from './chartPanes';
+import { hitAxisRect, type PriceAxisPos } from './chartPanes';
 
 /**
  * 输入控制器（D 批次拆分③；架构映射：ChartRenderer 输入区的 bind/unbind 与
@@ -48,6 +48,8 @@ export interface InputHost extends PanZoomHost, DrawingHost, TradeHost, HoverHos
   // ---- 图表级输入态（宿主持有，draw() 同读；setter 供路由写） ----
   /** 点击即选中面板（TV 行为） */
   selectPane(id: string): void;
+  /** 价格轴条内的悬停 y（画布坐标；null = 不在轴上）——「+」入口跟随光标落位的唯一输入源 */
+  setPriceScaleHoverY(y: number | null): void;
   /** 研究图例行命中区（drawLegendBlock 回写，悬停层读取） */
   studyRects(): readonly StudyLegendRect[];
   /** 复盘位置 index（null = 非回放） */
@@ -74,6 +76,8 @@ export interface InputHost extends PanZoomHost, DrawingHost, TradeHost, HoverHos
   drawingMenuCb(): ((id: string, x: number, y: number) => void) | null;
   drawingSettingsCb(): ((id: string) => void) | null;
   priceLineDblClickCb(): (() => void) | null;
+  /** 价格轴「+」入口点击（该处价格，四期-C2） */
+  priceScalePlusCb(): ((price: number) => void) | null;
 }
 
 export class InputController {
@@ -151,6 +155,17 @@ export class InputController {
       // 点击“自动”按钮 → 恢复自动适配（按钮随轴侧 translate，命中区同步扣偏移）
       const off = this.host.chartOffsetX?.() ?? 0;
       if (this.panzoom.hitAutoButton(x - off, y, pane)) return;
+      // 点击「+」→ 以该处价格建警报（TV：价格轴跟随光标建警报入口，四期-C2）。
+      // 与「自动」按钮由构造互斥（priceScalePlusRect 在与之竖直相交时返回 null），
+      // 故两条命中的先后不承重；未命中「+」时按旧行为进入价格拖拽。
+      const plus = this.host.priceScalePlusRect?.() ?? null;
+      this.host.setPriceScaleHoverY(null); // 按下即退出悬停：拖拽过程中不再显示「+」
+      if (plus && hitAxisRect(plus, x, y)) {
+        const main = this.host.panes()[0];
+        this.host.ensurePaneScaleReady(main);
+        this.host.priceScalePlusCb()?.(main.priceScale.yToPrice(plus.y + plus.h / 2 - main.y));
+        return;
+      }
       this.panzoom.beginPriceDrag(y);
       return;
     }
@@ -214,6 +229,10 @@ export class InputController {
       this.trade.dragTo(y);
       return;
     }
+    // 悬停「+」入口的唯一输入源：轴条内记画布 y、其余位置清空。必须先于光标决策——
+    // 矩形就地由该 y 派生（非绘制回写），同一次移动即可让光标与后续命中看到同一个框。
+    // 三个手势分支已在上方 return，拖拽期间不会改写它。
+    this.host.setPriceScaleHoverY(this.inPriceAxisAt(x) ? y : null);
     this.hover.updateHoverCursor(x, y);
     this.hover.update(x, y);
   };
@@ -245,6 +264,7 @@ export class InputController {
 
   private onPointerLeave = () => {
     this.host.crosshair.clear();
+    this.host.setPriceScaleHoverY(null);
     this.hover.clear();
     this.trade.setHoverCursor(false);
     this.host.invalidate();

@@ -12,7 +12,7 @@ import { GoToDateDialog } from '@/features/market/GoToDateDialog';
 import { IntervalInputDialog } from '@/features/market/IntervalInputDialog';
 import { CustomIntervalDialog } from '@/features/market/CustomIntervalDialog';
 import { ChartSettingsDialog } from '@/features/settings/ChartSettingsDialog';
-import { ChartContextMenu } from '@/features/market/ChartContextMenu';
+import { ChartContextMenu, ChartAlertDialog } from '@/features/market/ChartContextMenu';
 import { LegendContextMenu } from '@/features/indicators/LegendContextMenu';
 import { DrawingContextMenu } from '@/features/drawings/DrawingContextMenu';
 
@@ -63,6 +63,8 @@ export function ChartDialogs({
   const setLegendMenu = useUiStore((s) => s.setLegendMenu);
   const drawingMenu = useUiStore((s) => s.drawingMenu);
   const setDrawingMenu = useUiStore((s) => s.setDrawingMenu);
+  const priceScaleAlert = useUiStore((s) => s.priceScaleAlert);
+  const setPriceScaleAlert = useUiStore((s) => s.setPriceScaleAlert);
 
   /** 前往日期定位：复盘模式走 store（与 ReplayBar 定位同一路径，未来 K 线不越权）；
    *  普通模式把目标 bar 居中显示——借用 setReplayIndex 首次选中的居中逻辑后立即关闭复盘边缘 */
@@ -122,6 +124,13 @@ export function ChartDialogs({
         onOpenSettings={() => setChartSettingsOpen(true)}
         onGoToDate={() => setGoToDateOpen(true)}
         onClose={() => setChartMenu(null)}
+      />
+      {/* 价格轴「+」入口（四期-C2）：复用右键「添加警报」那只对话框，价格来自轴上光标处 */}
+      <ChartAlertDialog
+        open={priceScaleAlert !== null}
+        price={priceScaleAlert ?? 0}
+        instrument={instrument}
+        onClose={() => setPriceScaleAlert(null)}
       />
       <LegendContextMenu
         state={legendMenu}

@@ -6,7 +6,7 @@ import { getToolDef } from '../drawing/types';
 import { drawDrawings, type DrawContext } from '../drawing/drawDrawings';
 import { drawTrading } from './drawTrading';
 import { drawWatermark, watermarkText } from './drawWatermark';
-import { drawTimeAxis, drawBorders, type TimeDisplay } from './drawAxes';
+import { drawTimeAxis, drawBorders, drawPriceScalePlus, type TimeDisplay } from './drawAxes';
 import {
   drawCrosshair,
   drawLegendBlock,
@@ -230,6 +230,12 @@ export class RenderPipeline {
       axisPos,
       timeDisplay,
     );
+    // 价格轴「+」入口（四期-C2）：光标悬停轴条才出现，跟随光标落在该 y。
+    // 默认视图与 27 个黄金面截图都不悬停轴条 ⇒ 零新增像素；矩形由
+    // ChartState.priceScalePlusRect 就地派生，绘制/命中/光标三处同一帧同一几何。
+    const plusRect = st.priceScalePlusRect();
+    if (plusRect) drawPriceScalePlus(ctx, plusRect);
+
     // 图例常驻：悬停跟随十字光标，否则显示最后一根；同时收集研究行命中区
     st.studyRects = [];
     const legendInfo: LegendDrawInfo = { collapsed: 0 };

@@ -6,7 +6,7 @@ import type { PriceScale } from '../scale/PriceScale';
 import { theme, TV_FONT } from '../theme';
 import type { DrawGeometry } from './drawSeries';
 import { PALETTE } from '@/engine/palette';
-import { AXIS_HEIGHT, AXIS_WIDTH, chartAreaOffsetX, type PriceAxisPos } from './chartPanes';
+import { AXIS_HEIGHT, AXIS_WIDTH, chartAreaOffsetX, type AxisHitRect, type PriceAxisPos } from './chartPanes';
 
 /** 网格模式：TV 图表设置「画布」页四态 */
 export type GridMode = 'none' | 'horizontal' | 'vertical' | 'both';
@@ -220,6 +220,30 @@ export function drawLastPrice(
     const cy = belowY <= geo.chartH - 6 ? belowY : Math.max(by - 9, 8);
     ctx.fillText(countdown, pos === 'left' ? axisX + 2 : axisX + 2 + w, cy);
   }
+  ctx.restore();
+}
+
+/** 价格轴「+」入口（四期-C2，TV 的「跟随光标建警报」）：accent 圆角方块 + onAccent 十字，
+ *  与选 K 预览线的剪刀徽章同一形态（见 RenderPipeline.drawScissors）。
+ *  仅在光标悬停轴条的那一帧绘制——默认视图零新增像素，黄金面基线不受影响。 */
+export function drawPriceScalePlus(ctx: CanvasRenderingContext2D, rect: AxisHitRect): void {
+  const cx = rect.x + rect.w / 2;
+  const cy = rect.y + rect.h / 2;
+  const arm = rect.w * 0.28;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(rect.x, rect.y, rect.w, rect.h, 3);
+  ctx.fillStyle = theme.accent;
+  ctx.fill();
+  ctx.strokeStyle = theme.onAccent;
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - arm, cy);
+  ctx.lineTo(cx + arm, cy);
+  ctx.moveTo(cx, cy - arm);
+  ctx.lineTo(cx, cy + arm);
+  ctx.stroke();
   ctx.restore();
 }
 

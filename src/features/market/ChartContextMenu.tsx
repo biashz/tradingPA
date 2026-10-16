@@ -248,8 +248,9 @@ export function ChartContextMenu({
   );
 }
 
-/** 图表右键 → 添加警报：价格预填 + 方向选择，实时生效 */
-function ChartAlertDialog({
+/** 图表右键 → 添加警报：价格预填 + 方向选择，实时生效。
+ *  导出给价格轴「+」入口复用同一只对话框（四期-C2，ChartDialogs 挂载） */
+export function ChartAlertDialog({
   open,
   price,
   instrument,

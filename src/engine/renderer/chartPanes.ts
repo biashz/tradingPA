@@ -29,6 +29,57 @@ export function chartAreaOffsetX(pos: PriceAxisPos): number {
 
 export type PaneKind = 'price' | 'indicator';
 
+/** 画布坐标系下的命中矩形（轴内小部件用） */
+export interface AxisHitRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** 价格轴「+」入口边长：与价格轴标签同高（crosshairOverlay 的 h = 18），贴轴条居中 */
+export const PRICE_SCALE_PLUS_SIZE = 18;
+
+/**
+ * 价格轴「+」（跟随光标建警报）命中区纯函数——绘制、命中、光标三处共用同一几何，
+ * 不存在「看得见点不着 / 点得着看不见」的分裂。返回 null = 本帧不绘制也不吃点击。
+ *
+ * 三条 null 分支各有其故：
+ * - `axisPos = 'none'`：没有轴条可贴。
+ * - 光标不在主价格面板内：副图面板的刻度是该指标的值，按「价格」建警报会写错源
+ *   （警报对话框当前只出 `source: { type: 'price' }`）；该边界登记在 SPEC-TV-ALIGNMENT。
+ * - 与「自动」按钮竖直相交：二者都由同一 64px 轴条居中（autoBtn 的 bx = axisX +
+ *   (AXIS_WIDTH − bw)/2，见 PaneRenderer 的自动按钮），水平必然重叠，故只比竖直带。
+ *   排除后两个部件由构造互斥，命中顺序不承重。
+ */
+/** 画布坐标点是否落在命中矩形内（含边界）：光标决策与按下路由共用，二者判定必然同构 */
+export function hitAxisRect(r: AxisHitRect, x: number, y: number): boolean {
+  return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+}
+
+export function priceScalePlusRect(input: {
+  hoverY: number | null;
+  axisPos: PriceAxisPos;
+  chartW: number;
+  paneY: number;
+  paneHeight: number;
+  autoBtn: AxisHitRect | null;
+}): AxisHitRect | null {
+  const { hoverY, axisPos, chartW, paneY, paneHeight } = input;
+  if (hoverY === null || axisPos === 'none') return null;
+  if (hoverY < paneY || hoverY > paneY + paneHeight) return null;
+  const size = PRICE_SCALE_PLUS_SIZE;
+  // 画布坐标下的轴条左缘：右轴 = 图表区右缘，左轴 = 0（与 chartAreaOffsetX 同口径）
+  const stripX = axisPos === 'left' ? 0 : chartW;
+  const y = Math.min(Math.max(hoverY - size / 2, paneY), paneY + paneHeight - size);
+  const btn = input.autoBtn;
+  if (btn) {
+    const btnTop = paneY + btn.y;
+    if (y < btnTop + btn.h && y + size > btnTop) return null;
+  }
+  return { x: stripX + (AXIS_WIDTH - size) / 2, y, w: size, h: size };
+}
+
 export interface PaneState {
   id: string;
   kind: PaneKind;

@@ -13,6 +13,7 @@ import { TradeGesture, type TradeHost, type TradePane } from '@/engine/renderer/
 import { HoverController, type HoverHost, type HoverPane } from '@/engine/renderer/HoverController';
 import { InputController, type InputHost, type InputPane } from '@/engine/renderer/InputController';
 import { hoverStudyRow } from '@/engine/renderer/cursor';
+import { priceScalePlusRect } from '@/engine/renderer/chartPanes';
 import type { StudyLegendRect } from '@/engine/renderer/drawCrosshair';
 
 /**
@@ -518,10 +519,41 @@ describe('cursor.hoverStudyRow：研究图例行悬停判定', () => {
   });
 });
 
+// ---------- 价格轴「+」几何（四期-C2） ----------
+
+describe('chartPanes.priceScalePlusRect：绘制/命中/光标三处共用的唯一几何', () => {
+  const base = { hoverY: 300, axisPos: 'right' as const, chartW: CHART_W, paneY: 0, paneHeight: 600, autoBtn: null };
+  const size = 18;
+
+  it('右轴居中于 64px 轴条、竖直跟随光标', () => {
+    expect(priceScalePlusRect(base)).toEqual({ x: CHART_W + (64 - size) / 2, y: 300 - size / 2, w: size, h: size });
+  });
+
+  it('左轴贴画布左缘（stripX = 0）', () => {
+    expect(priceScalePlusRect({ ...base, axisPos: 'left' })?.x).toBe((64 - size) / 2);
+  });
+
+  it('钳在主面板内：上缘不越 paneY、下缘不越 paneY+height', () => {
+    expect(priceScalePlusRect({ ...base, hoverY: 5 })?.y).toBe(0);
+    expect(priceScalePlusRect({ ...base, hoverY: 599 })?.y).toBe(600 - size);
+  });
+
+  it('三条 null 分支：不在轴上 / 无价格轴 / 光标在副图面板', () => {
+    expect(priceScalePlusRect({ ...base, hoverY: null })).toBeNull();
+    expect(priceScalePlusRect({ ...base, axisPos: 'none' })).toBeNull();
+    expect(priceScalePlusRect({ ...base, hoverY: 700 })).toBeNull();
+  });
+
+  it('与「自动」按钮竖直相交时让位（二者同条居中，由构造互斥）', () => {
+    expect(priceScalePlusRect({ ...base, autoBtn: { x: 0, y: 285, w: 40, h: 16 } })).toBeNull();
+    expect(priceScalePlusRect({ ...base, autoBtn: { x: 0, y: 50, w: 40, h: 16 } })).not.toBeNull();
+  });
+});
+
 // ---------- HoverController ----------
 
 describe('HoverController：悬停态/十字光标/光标决策', () => {
-  function setup() {
+  function setup(plusRect: { x: number; y: number; w: number; h: number } | null = null) {
     const viewport = makeViewport();
     const series = makeSeries();
     const crosshair = new Crosshair();
@@ -544,6 +576,7 @@ describe('HoverController：悬停态/十字光标/光标决策', () => {
       barSelectMode: () => false,
       publishCrosshairTime: (t) => published.push(t),
       invalidate: () => {},
+      priceScalePlusRect: () => plusRect,
     };
     const drawing = new DrawingGesture({
       drawingCtx: () => ({ viewport, priceScale, series, geo: { chartW: CHART_W, chartH: CHART_H } }),
@@ -584,6 +617,14 @@ describe('HoverController：悬停态/十字光标/光标决策', () => {
   it('光标决策：价格轴区域 ns-resize', () => {
     const { h, canvas } = setup();
     h.updateHoverCursor(CHART_W + 10, 300);
+    expect(canvas.style.cursor).toBe('ns-resize');
+  });
+
+  it('光标决策：轴内「+」框上 pointer，框外仍 ns-resize（四期-C2）', () => {
+    const { h, canvas } = setup({ x: CHART_W + 23, y: 291, w: 18, h: 18 });
+    h.updateHoverCursor(CHART_W + 32, 300); // 框内
+    expect(canvas.style.cursor).toBe('pointer');
+    h.updateHoverCursor(CHART_W + 10, 300); // 同 y，x 在框左缘之外
     expect(canvas.style.cursor).toBe('ns-resize');
   });
 });
@@ -638,7 +679,22 @@ describe('InputController：事件路由到手势', () => {
       },
     ];
     const published: Array<number | null> = [];
-    const state = { selected: 'main', hoveredPane: 'main', previewX: null as number | null };
+    const state = {
+      selected: 'main',
+      hoveredPane: 'main',
+      previewX: null as number | null,
+      priceScaleHoverY: null as number | null,
+    };
+    const plusPrices: number[] = [];
+    const plusRect = () =>
+      priceScalePlusRect({
+        hoverY: state.priceScaleHoverY,
+        axisPos: 'right',
+        chartW: CHART_W,
+        paneY: panes[0].y,
+        paneHeight: panes[0].height,
+        autoBtn: panes[0].autoBtn,
+      });
     const host: InputHost = {
       manager: { canvas, width: 1280, height: 800 } as unknown as CanvasManager,
       canvas,
@@ -664,6 +720,11 @@ describe('InputController：事件路由到手势', () => {
       selectPane: (id) => {
         state.selected = id;
       },
+      setPriceScaleHoverY: (y) => {
+        state.priceScaleHoverY = y;
+      },
+      // 与 ChartController 同一条派生链：状态里的悬停 y + 真纯函数，绘制/命中/光标三处同源
+      priceScalePlusRect: plusRect,
       setHoveredPane: (id) => {
         state.hoveredPane = id;
       },
@@ -686,6 +747,7 @@ describe('InputController：事件路由到手势', () => {
       drawingMenuCb: () => null,
       drawingSettingsCb: () => null,
       priceLineDblClickCb: () => null,
+      priceScalePlusCb: () => (price: number) => plusPrices.push(price),
     };
     const drawing = new DrawingGesture(host);
     const trade = new TradeGesture(host);
@@ -693,7 +755,7 @@ describe('InputController：事件路由到手势', () => {
     const panzoom = new PanZoomGesture(host);
     const input = new InputController(host, panzoom, drawing, trade, hover);
     input.bind(canvas);
-    return { input, viewport, panes, priceScale, published, state, drawing, panzoom };
+    return { input, viewport, panes, priceScale, published, state, drawing, panzoom, plusPrices, plusRect };
   }
 
   function pointer(type: string, x: number, y: number, button = 0): void {
@@ -710,6 +772,46 @@ describe('InputController：事件路由到手势', () => {
     expect(priceScale.range.min).not.toBe(range0.min);
     expect(panes[0].manual).toBe(true);
     pointer('pointerup', 1270, 400);
+  });
+
+  it('价格轴「+」：轴内移动 → 框随光标；在框上按下 → 回调拿到框心价格，且不吃价格拖拽', () => {
+    const { panes, priceScale, plusPrices, plusRect } = setup();
+    const range0 = { ...priceScale.range };
+    pointer('pointermove', 1239, 595); // 轴条内、贴近面板下缘 → 框被钳到 [582,600]
+    const rect = plusRect();
+    expect(rect).not.toBeNull();
+    expect(rect?.y).toBe(600 - 18);
+    pointer('pointerdown', rect!.x + rect!.w / 2, 595); // x 取框心，y 仍为光标处
+    expect(plusPrices).toHaveLength(1);
+    // 承重断言：价格取「绘制出来的框心」而非光标 y——二者在钳位时不同
+    expect(priceScale.yToPrice(591)).not.toBe(priceScale.yToPrice(595));
+    expect(plusPrices[0]).toBeCloseTo(priceScale.yToPrice(591), 6);
+    expect(priceScale.range.min).toBe(range0.min);
+    expect(panes[0].manual).toBe(false);
+    pointer('pointerup', rect!.x + rect!.w / 2, 595);
+  });
+
+  it('轴内「+」框之外按下 → 仍进入价格拖拽（悬停态不吞旧行为）', () => {
+    const { panes, priceScale, plusPrices, state } = setup();
+    const range0 = { ...priceScale.range };
+    pointer('pointermove', 1270, 300); // 悬停会生成框，但 x=1270 在框（1239–1257）之外
+    pointer('pointerdown', 1270, 300);
+    expect(plusPrices).toHaveLength(0);
+    expect(state.priceScaleHoverY).toBeNull(); // 按下即退出悬停：拖拽期间不再显示「+」
+    pointer('pointermove', 1270, 400);
+    expect(priceScale.range.min).not.toBe(range0.min);
+    expect(panes[0].manual).toBe(true);
+    pointer('pointerup', 1270, 400);
+  });
+
+  it('离开画布 → 清空悬停 y，「+」随即消失（默认视图零像素的结构依据）', () => {
+    const { state, plusRect } = setup();
+    pointer('pointermove', 1250, 300);
+    expect(state.priceScaleHoverY).toBe(300);
+    expect(plusRect()).not.toBeNull();
+    canvas.dispatchEvent(new PointerEvent('pointerleave', { bubbles: true, cancelable: true }));
+    expect(state.priceScaleHoverY).toBeNull();
+    expect(plusRect()).toBeNull();
   });
 
   it('空白处 pointerdown+move → 视口平移；松柄发布视口提交', () => {

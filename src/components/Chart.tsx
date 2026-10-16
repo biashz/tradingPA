@@ -10,6 +10,7 @@ import { useLayoutStore } from '@/store/layoutStore';
 import { useReplayStore } from '@/store/replayStore';
 import { useTradeStore } from '@/features/trading/tradeStore';
 import { useOrderMenuStore } from '@/store/orderMenuStore';
+import { useUiStore } from '@/store/uiStore';
 import { syncBus } from '@/store/syncBus';
 import { registerChartRenderer, unregisterChartRenderer } from '@/hooks/useTvShortcuts';
 import { BackToLatestButton } from '@/hooks/BackToLatestButton';
@@ -181,6 +182,10 @@ export function Chart({
     rendererRef.current?.setChartClickCallback((price, time, clientX, clientY) => {
       useOrderMenuStore.getState().openMenu(price, time, clientX, clientY);
     });
+    // 价格轴「+」→ 建警报（四期-C2）：引擎只报该处价格，开合态与其余对话框同在 uiStore 单一来源
+    rendererRef.current?.setPriceScaleAlertCallback((price) => {
+      useUiStore.getState().setPriceScaleAlert(price);
+    });
     rendererRef.current?.setContextMenuCallback((price, _time, clientX, clientY) => {
       menuCallbacksRef.current.onChartContextMenu?.(price, _time, clientX, clientY);
     });
@@ -237,6 +242,7 @@ export function Chart({
     return () => {
       rendererRef.current?.setTradeCallbacks({});
       rendererRef.current?.setChartClickCallback(null);
+      rendererRef.current?.setPriceScaleAlertCallback(null);
       rendererRef.current?.setContextMenuCallback(null);
       rendererRef.current?.setStudyActionCallback(null);
       rendererRef.current?.setToolFinishedCallback(null);

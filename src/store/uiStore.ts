@@ -38,6 +38,9 @@ export interface UiStore {
   /** 画线右键菜单 */
   drawingMenu: { id: string; x: number; y: number } | null;
   setDrawingMenu: (state: { id: string; x: number; y: number } | null) => void;
+  /** 价格轴「+」入口（四期-C2）：null = 关；数值 = 打开警报对话框并预填该价格 */
+  priceScaleAlert: number | null;
+  setPriceScaleAlert: (price: number | null) => void;
   /** 周期输入浮层（数字键 / 逗号直开，TV featureset show_interval_dialog_on_key_press） */
   intervalOpen: boolean;
   intervalInitial: string;
@@ -68,6 +71,9 @@ export const useUiStore = create<UiStore>((set) => ({
   setLegendMenu: (legendMenu) => set({ legendMenu }),
   drawingMenu: null,
   setDrawingMenu: (drawingMenu) => set({ drawingMenu }),
+
+  priceScaleAlert: null,
+  setPriceScaleAlert: (priceScaleAlert) => set({ priceScaleAlert }),
 
   intervalOpen: false,
   intervalInitial: '',
