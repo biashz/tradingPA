@@ -1,6 +1,6 @@
 import { TvCaret } from './tvIconSet';
 import { ICONS, isGroupActive, shownOf, TOOL_LABELS, type ToolGroup, type ToolbarItem } from './drawingToolGroups';
-import { caretStyle, cellStyle, controlStyle, mainBtnStyle } from './drawingToolbarStyles';
+import { caretStyle, cellStyle, controlStyle, mainBtnStyle, toolCellTone } from './drawingToolbarStyles';
 import { icon } from '@/ui/tokens';
 
 interface DrawingToolButtonProps {
@@ -36,6 +36,7 @@ export function DrawingToolButton({
   const Icon = ICONS[shown];
   const active = isGroupActive(group, activeTool);
   const hasFlyout = group.items.length > 1;
+  const tone = toolCellTone({ active, hovered, open });
   return (
     <div data-tool-control style={controlStyle} onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <button
@@ -53,17 +54,8 @@ export function DrawingToolButton({
           if (!hasFlyout || e.detail === 0) onActivate(shown);
         }}
       >
-        <span
-          style={{
-            ...cellStyle,
-            background: active ? 'var(--accent)' : hovered ? 'var(--panel-2)' : 'transparent',
-          }}
-        >
-          <Icon
-            size={icon.xl}
-            strokeWidth={1.5}
-            style={{ color: active ? 'var(--text-on-accent)' : hovered ? 'var(--text)' : undefined }}
-          />
+        <span data-role="main-cell" style={{ ...cellStyle, background: tone.background }}>
+          <Icon size={icon.xl} strokeWidth={1.5} style={{ color: tone.color }} />
         </span>
       </button>
       {hasFlyout && (

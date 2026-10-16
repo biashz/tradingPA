@@ -41,6 +41,17 @@ export const cellStyle: CSSProperties = {
   justifyContent: 'center',
 };
 
+/** 主按钮格与图标的取色：激活 > flyout 展开/悬停 > 原样。
+ *  flyout 展开与悬停同档——TV 观感里展开态就是「按住」那一档，不新增第三色。 */
+export function toolCellTone(state: { active: boolean; hovered: boolean; open: boolean }): {
+  background: string;
+  color: string | undefined;
+} {
+  if (state.active) return { background: 'var(--accent)', color: 'var(--text-on-accent)' };
+  if (state.open || state.hovered) return { background: 'var(--panel-2)', color: 'var(--text)' };
+  return { background: 'transparent', color: undefined };
+}
+
 /** caret：独立命中目标，悬停或展开时才可见 */
 export const caretStyle: CSSProperties = {
   position: 'absolute',
