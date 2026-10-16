@@ -18,6 +18,7 @@ import { Menu, MenuItem } from '@/ui/primitives';
 import { DatePicker } from '@/ui/DatePicker';
 import { dateStrToTime } from '@/ui/calendar';
 import { icon } from '@/ui/tokens';
+import { ToolbarSelect } from '@/ui/ToolbarSelect';
 import {
   barStyle,
   dateBadgeStyle,
@@ -26,12 +27,14 @@ import {
   orderBtn,
   qtyInput,
   sepStyle,
-  selectStyle,
   datePopStyle,
   hintStyle,
 } from './replayBarStyles';
 
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+
+/** ToolbarSelect 的 value 是 string，倍速档位表仍以 `replayStore.REPLAY_SPEEDS` 为单一来源 */
+const SPEED_OPTIONS = REPLAY_SPEEDS.map((s) => ({ value: String(s), label: `${s}x` }));
 
 /** 回放徽章时间：周四 2026-09-17 07:00（日线及以上只显日期） */
 function formatBarTime(time: number): string {
@@ -195,18 +198,14 @@ export function ReplayBar({ barCount, intervalLabel, price, time, onSeekToTime }
               <SkipForward size={icon.md} />
             </button>
             <div style={sepStyle} />
-            <select
-              style={{ ...selectStyle, width: 52 }}
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
+            <ToolbarSelect
+              ariaLabel="播放倍速"
               title="播放倍速"
-            >
-              {REPLAY_SPEEDS.map((s) => (
-                <option key={s} value={s}>
-                  {s}x
-                </option>
-              ))}
-            </select>
+              value={String(speed)}
+              minWidth={64}
+              options={SPEED_OPTIONS}
+              onChange={(v) => setSpeed(Number(v))}
+            />
             <span style={{ color: 'var(--text-dim)', fontSize: 12, padding: '0 4px' }}>{intervalLabel}</span>
           </>
         )}

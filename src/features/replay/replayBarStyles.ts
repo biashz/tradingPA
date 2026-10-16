@@ -75,15 +75,6 @@ export const sepStyle: React.CSSProperties = {
   background: 'var(--border)',
 };
 
-export const selectStyle: React.CSSProperties = {
-  background: 'var(--panel-2)',
-  color: 'var(--text)',
-  border: '1px solid var(--border)',
-  borderRadius: 4,
-  padding: '3px 6px',
-  fontSize: 12,
-};
-
 export const datePopStyle: React.CSSProperties = {
   position: 'absolute',
   bottom: '100%',

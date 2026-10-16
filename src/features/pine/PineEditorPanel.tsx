@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, ChevronDown, ChevronUp, Play, Save, Plus, X } from 'lucide-react';
 import { usePineStore, DRAFT_ID } from '@/store/pineStore';
 import { usePineRuntimeError } from './usePineRuntimeErrors';
+import { ToolbarSelect } from '@/ui/ToolbarSelect';
 import { fontSize, icon, radius, space } from '@/ui/tokens';
 
 /**
@@ -66,38 +67,24 @@ export function PineEditorPanel() {
         {draftName && <span style={{ color: 'var(--text-faint)', fontSize: fontSize.sm }}>· {draftName}</span>}
         <span style={{ flex: 1 }} />
         {scripts.length > 0 && (
-          <select
-            style={selectStyle}
+          <ToolbarSelect
+            ariaLabel="已保存脚本"
             value=""
-            aria-label="已保存脚本"
-            onChange={(e) => {
-              if (e.target.value) loadIntoEditor(e.target.value);
-            }}
-          >
-            <option value="">已保存（{scripts.length}）…</option>
-            {scripts.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            label={`已保存（${scripts.length}）…`}
+            minWidth={140}
+            options={scripts.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(id) => loadIntoEditor(id)}
+          />
         )}
         {scripts.length > 0 && (
-          <select
-            style={selectStyle}
+          <ToolbarSelect
+            ariaLabel="删除脚本"
             value=""
-            aria-label="删除脚本"
-            onChange={(e) => {
-              if (e.target.value) remove(e.target.value);
-            }}
-          >
-            <option value="">删除…</option>
-            {scripts.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            label="删除…"
+            minWidth={140}
+            options={scripts.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(id) => remove(id)}
+          />
         )}
         <button style={btnStyle} onClick={() => run()} title="运行（编译草稿）">
           <Play size={icon.md} /> 运行
@@ -226,15 +213,4 @@ const iconBtnStyle: React.CSSProperties = {
   borderRadius: radius.sm,
   cursor: 'pointer',
   flexShrink: 0,
-};
-
-const selectStyle: React.CSSProperties = {
-  height: 24,
-  background: 'var(--panel-2)',
-  color: 'var(--text)',
-  border: 'none',
-  borderRadius: radius.sm,
-  fontSize: fontSize.sm,
-  padding: `0 ${space.xs}px`,
-  maxWidth: 140,
 };

@@ -24,6 +24,7 @@ import { useThemeStore } from '@/store/themeStore';
 import { useDrawingStore } from '@/store/drawingStore';
 import { useToast } from '@/features/ui/toastModel';
 import { Modal } from '@/ui/primitives';
+import { ToolbarSelect } from '@/ui/ToolbarSelect';
 import { decimalsFor } from '@/data/format';
 import { icon, space } from '@/ui/tokens';
 import {
@@ -248,6 +249,11 @@ export function ChartContextMenu({
   );
 }
 
+const DIRECTION_OPTIONS = [
+  { value: 'crossUp', label: '价格上穿' },
+  { value: 'crossDown', label: '价格下穿' },
+];
+
 /** 图表右键 → 添加警报：价格预填 + 方向选择，实时生效。
  *  导出给价格轴「+」入口复用同一只对话框（四期-C2，ChartDialogs 挂载） */
 export function ChartAlertDialog({
@@ -309,18 +315,16 @@ export function ChartAlertDialog({
           aria-label="警报价格"
         />
       </label>
-      <label style={fieldStyle}>
+      <div style={fieldStyle}>
         <span style={fieldLabelStyle}>条件</span>
-        <select
+        <ToolbarSelect
+          ariaLabel="警报条件"
           value={direction}
-          onChange={(e) => setDirection(e.target.value as 'crossUp' | 'crossDown')}
-          style={inputStyle}
-          aria-label="警报条件"
-        >
-          <option value="crossUp">价格上穿</option>
-          <option value="crossDown">价格下穿</option>
-        </select>
-      </label>
+          options={DIRECTION_OPTIONS}
+          minWidth={96}
+          onChange={(v) => setDirection(v as 'crossUp' | 'crossDown')}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: space.sm, marginTop: space.md }}>
         <button style={ghostBtnStyle} onClick={onClose}>
           取消

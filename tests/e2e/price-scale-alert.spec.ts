@@ -177,3 +177,49 @@ test('手动价格域后「+」给「自动」按钮让位（同条居中，由�
   await page.mouse.move(g.box.x + g.plusCenterX, g.box.y + above);
   await expect.poll(() => accentPixels(page, g.bandAt(above))).toBeGreaterThan(150);
 });
+
+/**
+ * 四期-C4c：对话框里的「条件」原本是原生 `<select>`，现收敛到 `ToolbarSelect`。
+ * 这条钉的是收敛后的**整链**——菜单能开（浏览器真实指针事件，jsdom 打不开 Radix 菜单，
+ * 理由见 `tests/unit/toolbar-select.test.tsx` 头注）、点项回调的是该项 value、
+ * 且该 value 一路写进落盘存档；「不动条件」的那次创建是同一条链的对照读数。
+ */
+test('警报对话框的「条件」菜单：默认上穿为对照，选「价格下穿」后落盘 condition 跟着变', async ({ page }) => {
+  await boot(page);
+  const g = await geom(page);
+  const y = g.chartH * 0.4;
+  const openDialog = async (): Promise<void> => {
+    await page.mouse.move(g.box.x + g.plusCenterX, g.box.y + y);
+    await page.mouse.click(g.box.x + g.plusCenterX, g.box.y + y);
+    await expect(page.getByRole('dialog', { name: /添加警报/ })).toBeVisible();
+  };
+  /** 关掉对话框必须等到真正卸载：Radix 的遮罩还在时，下一次画布点击落在遮罩上而不是「+」，
+   *  表现为对话框根本不出现（本轮实测：不加这一步，第二次 openDialog 5s 等不到元素） */
+  const closeDialog = async (): Promise<void> => {
+    await expect(page.getByRole('dialog', { name: /添加警报/ })).toBeHidden();
+  };
+  const lastAlert = () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('tradingpa.alerts');
+      const saved = raw ? (JSON.parse(raw) as { alerts?: Array<{ condition: string; source: { type: string } }> }) : {};
+      const last = (saved.alerts ?? []).at(-1);
+      return last ? `${last.source.type}:${last.condition}` : 'none';
+    });
+
+  await openDialog();
+  // 同一个可读名下 role 从 combobox 变 button ⇒ 原生件确实不在了（不是新加了一个重复入口）
+  await expect(page.getByRole('combobox', { name: '警报条件' })).toHaveCount(0);
+  const cond = page.getByRole('button', { name: '警报条件' });
+  await expect(cond).toHaveText('价格上穿'); // 当前项文案上触发器
+  await page.getByRole('button', { name: '创建' }).click();
+  await closeDialog();
+  await expect.poll(lastAlert).toBe('price:crossUp');
+
+  await openDialog();
+  await page.getByRole('button', { name: '警报条件' }).click();
+  await page.getByRole('menuitem', { name: '价格下穿' }).click();
+  await expect(cond).toHaveText('价格下穿');
+  await page.getByRole('button', { name: '创建' }).click();
+  await closeDialog();
+  await expect.poll(lastAlert).toBe('price:crossDown');
+});

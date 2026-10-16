@@ -69,3 +69,56 @@ test('Pine 编辑器编译自定义指标', async ({ page }) => {
   await page.getByRole('button', { name: /运行/ }).click();
   await expect(page.getByText(/不支持的函数/)).toBeVisible();
 });
+
+/**
+ * 四期-C4c：Pine 编辑器顶栏那两只「动作提示」型下拉（`已保存（N）…` 载入 / `删除…`）原本是
+ * `value=""` + 空值占位 `<option>` 的原生 select，收敛到 `ToolbarSelect` 后靠 `label` prop 承载
+ * 触发器文案、`value` 恒为空串（选项里没有 ''，所以勾选永不落项）。这条钉四点：
+ * ① 未保存时两只都不渲染（条件渲染语义未变）；② 触发器文案来自 label 而非当前项；
+ * ③ 菜单项点击确实回灌 store（先把编辑器改脏，再从菜单点回来）；
+ * ④ 删除链同一条，且落盘存档同步清空。
+ * role 从 combobox 变 button 是原生件不存在的读数。
+ */
+test('Pine 编辑器的两只动作菜单：载入与删除', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText(/[1-9][0-9,]* 根/)).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Pine 编辑器' }).click();
+  const editor = page.getByLabel('Pine 脚本源码');
+  await expect(editor).toBeVisible();
+
+  const savedNames = () =>
+    page.evaluate(() => {
+      const raw = localStorage.getItem('tradingpa.pine.scripts');
+      const list = raw ? (JSON.parse(raw) as Array<{ name: string }>) : [];
+      return list.map((s) => s.name).join(',');
+    });
+  const loadBtn = page.getByRole('button', { name: '已保存脚本' });
+  const delBtn = page.getByRole('button', { name: '删除脚本' });
+
+  // ① 默认无已保存脚本 ⇒ 两只菜单都不渲染（且没有任何 combobox 残留）
+  await expect.poll(savedNames).toBe('');
+  await expect(loadBtn).toHaveCount(0);
+  await expect(delBtn).toHaveCount(0);
+
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect.poll(savedNames).toBe('双均线交叉');
+
+  // ② 触发器文案来自 label（value 恒 ''，选项里没有 ''）
+  await expect(loadBtn).toHaveText('已保存（1）…');
+  await expect(delBtn).toHaveText('删除…');
+  await expect(page.getByRole('combobox', { name: '已保存脚本' })).toHaveCount(0);
+
+  // ③ 载入：先把编辑器改脏，再从菜单点回来 ⇒ 菜单项确实回灌 store，不只是列了个名字
+  await editor.fill('indicator("临时", overlay=true)\nplot(close, "T")');
+  await loadBtn.click();
+  await page.getByRole('menuitem', { name: '双均线交叉' }).click();
+  await expect(editor).toHaveValue(/双均线交叉/);
+  await expect(loadBtn).toHaveText('已保存（1）…'); // 动作提示型：用完不变成「已选项」
+
+  // ④ 删除走另一只同列表的菜单，落盘同步清空 ⇒ 两只菜单一起消失
+  await delBtn.click();
+  await page.getByRole('menuitem', { name: '双均线交叉' }).click();
+  await expect.poll(savedNames).toBe('');
+  await expect(loadBtn).toHaveCount(0);
+  await expect(delBtn).toHaveCount(0);
+});

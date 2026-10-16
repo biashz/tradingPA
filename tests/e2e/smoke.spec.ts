@@ -128,7 +128,9 @@ test('回放模式进入与退出', async ({ page }) => {
   await expect(page.getByRole('button', { name: '选择K线' })).toBeVisible();
   // 点击图表选定起点 → 进入回放（走位控件出现）
   await page.locator('canvas').click({ position: { x: 400, y: 300 } });
-  await expect(page.getByRole('button', { name: '播放' })).toBeVisible();
+  // `exact` 是四期-C4c 带的：倍速那颗从原生 select 换成 ToolbarSelect 后 role 由 combobox 变 button，
+  // 可访问名「播放倍速」被非精确的 name: '播放' 子串命中 ⇒ strict mode 解析到 2 个元素。
+  await expect(page.getByRole('button', { name: '播放', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: '上一根' })).toBeVisible();
   await expect(page.getByText('请在图表上点击选择 K 线作为回放起点')).toBeHidden();
   // 回放计时菜单
@@ -148,7 +150,7 @@ test('回放模式进入与退出', async ({ page }) => {
     );
   const before = await idxOf();
   expect(before).not.toBeNull();
-  await page.getByRole('button', { name: '播放' }).click();
+  await page.getByRole('button', { name: '播放', exact: true }).click();
   await page.waitForTimeout(900);
   await page.getByRole('button', { name: '暂停' }).click();
   expect(await idxOf()).toBeGreaterThan(before!);

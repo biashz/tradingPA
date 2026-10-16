@@ -321,3 +321,41 @@ test('回放选择日期日历弹层', async ({ page }) => {
   await page.getByRole('button', { name: '跳转' }).click();
   await expect(trigger).toBeHidden();
 });
+
+/**
+ * 四期-C4c：回放工具条的「播放倍速」原本是 52px 宽的原生 `<select>`（value 是 number），
+ * 现收敛到 `ToolbarSelect`（value 是 string）。这条钉的是收敛后仍然承重的三件事：
+ * ① 档位表仍以 `replayStore.REPLAY_SPEEDS` 为单一来源（菜单四项、文案 1x/2x/4x/8x）；
+ * ② String↔Number 折算正确（选「4x」后触发器回到 4x，而不是空值或 1x）；
+ * ③ `title` 透传（原生件本就挂 title="播放倍速"，收敛后不能把这个悬停提示弄丢——
+ *    `ToolbarSelect` 为此新增 additive `title` prop）。
+ * role 从 combobox 变 button 是「原生件确实不在了」的直接读数，与 C4c 的判据同源。
+ */
+test('回放倍速菜单：档位表同源、String↔Number 折算、title 透传', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText(/[1-9][0-9,]* 根/)).toBeVisible({ timeout: 20_000 });
+
+  // 进入回放：选工具 → 点一根 K 线 → 回放工具条出现（与「回放选择日期日历弹层」同一条入场链）
+  await page.getByRole('button', { name: /回放：点击后/ }).click();
+  await page
+    .locator('canvas')
+    .first()
+    .click({ position: { x: 400, y: 300 } });
+
+  await expect(page.getByRole('combobox', { name: '播放倍速' })).toHaveCount(0);
+  const speed = page.getByRole('button', { name: '播放倍速' });
+  await expect(speed).toBeVisible();
+  await expect(speed).toHaveAttribute('title', '播放倍速');
+  await expect(speed).toHaveText('1x');
+
+  await speed.click();
+  const menu = page.getByRole('menu');
+  await expect(menu.getByRole('menuitem')).toHaveCount(4); // 1/2/4/8，档位表未截断
+  await menu.getByRole('menuitem', { name: '4x' }).click();
+  await expect(speed).toHaveText('4x');
+
+  // 反向对照：折算是双向的，回到 1x 后触发器不再停留在 4x
+  await speed.click();
+  await page.getByRole('menuitem', { name: '1x' }).click();
+  await expect(speed).toHaveText('1x');
+});
