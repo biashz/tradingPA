@@ -274,10 +274,16 @@ test('交易页偏好跨刷新保留并流入下单表单', async ({ page }) => 
   await page.getByRole('button', { name: '限价 / 止损挂单' }).click();
   const dlg = page.getByRole('dialog', { name: '挂单' });
   await expect(dlg.getByLabel('数量')).toHaveValue('0.25');
+  // 限价与止损价都由对话框挂载那一刻的同一个 price 播种（`OrderDialog.tsx:15-16`），而「当前价」标签
+  // 随后续渲染继续更新 ⇒ 拿标签反推期望值会在「播种 → 读取」窗口内被行情推进时打红
+  // （2026-10-16 整串实测 expected 1340.65 / received 1341.03，base 差 0.028%；单跑 10 次不复现）。
+  // 改为比对两个同刻播种的字段，且先读限价再点「止损」（切到 stop 档后限价行会卸载）。
+  // 绝对差只可能来自两次 `toFixed(2)` 的双取整：探针实测 -0.0042 ⇒ 上限取 1 分钱。
+  const limit = Number(await dlg.getByLabel('限价').inputValue());
+  expect(limit).toBeGreaterThan(0);
   await dlg.getByRole('button', { name: '止损', exact: true }).click();
-  const priceText = (await dlg.getByText(/当前价/).textContent())?.match(/当前价 ([0-9.]+)/)?.[1];
-  expect(priceText).toBeTruthy();
-  await expect(dlg.getByLabel('止损价')).toHaveValue((Number(priceText) * 1.02).toFixed(2));
+  const stop = Number(await dlg.getByLabel('止损价').inputValue());
+  expect(Math.abs(stop - limit * 1.02)).toBeLessThanOrEqual(0.011);
 
   // 第 5 处调用点（图表右键下单浮窗）：回放态右键 → 数量同样取偏好；
   // 关档改 市价/卖出 后点遮罩关闭 → 卸载，重开回到默认档且数量仍是偏好（证明每次打开重新播种）
