@@ -121,15 +121,22 @@ function revealForward(page: Page, from: number, to: number): Promise<RevealRow[
   );
 }
 
-/** 画布某列上与 color 同色的像素行数（只用公开 `screenshot()`，不碰内部 canvas） */
-function columnHits(page: Page, color: string, x: number): Promise<number> {
+/**
+ * 画布某列上与 color 同色的像素**行号**（只用公开 `screenshot()`，不碰内部 canvas）。
+ * `band` 是 CSS 逻辑像素的 y 夹带：默认画线色与主题跌色同为 `#ef5350`
+ * （`src/engine/palette.ts:31`、`theme.ts:57`），而**最新价虚线横贯整个主图**
+ * （`src/engine/renderer/drawAxes.ts:184-195`，按涨跌取 `theme.up/down` + `[2,2]` 虚线），
+ * 不夹带就会把那条常驻虚线当成「线残留」——它命中哪一列取决于虚线相位与价签行 y，
+ * 故不夹带的对照断言必然间歇红（2026-10-16 四期-E1d 探针实测：画线前该列已有 1 行同色）。
+ */
+function columnRows(page: Page, color: string, x: number, band?: [number, number]): Promise<number[]> {
   return page.evaluate(
     (a) => {
       const c = (window as unknown as { __chartRenderer?: EngLike }).__chartRenderer;
       if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
       const img = new Image();
       img.src = c.screenshot();
-      return new Promise<number>((resolve, reject) => {
+      return new Promise<number[]>((resolve, reject) => {
         img.onload = () => {
           const cv = document.createElement('canvas');
           cv.width = img.width;
@@ -139,17 +146,19 @@ function columnHits(page: Page, color: string, x: number): Promise<number> {
           const target = [1, 3, 5].map((i) => parseInt(a.color.slice(i, i + 2), 16));
           const el = document.querySelector('canvas') as HTMLCanvasElement;
           const px = Math.round(a.x * (img.width / el.clientWidth));
-          let hits = 0;
-          for (let py = 0; py < cv.height; py++) {
+          const py0 = a.band ? Math.round(a.band[0] * (img.height / el.clientHeight)) : 0;
+          const py1 = a.band ? Math.round(a.band[1] * (img.height / el.clientHeight)) : cv.height - 1;
+          const rows: number[] = [];
+          for (let py = py0; py <= py1; py++) {
             const d = ctx.getImageData(px, py, 1, 1).data;
-            if ([0, 1, 2].every((k) => Math.abs(d[k] - target[k]) <= 8)) hits++;
+            if ([0, 1, 2].every((k) => Math.abs(d[k] - target[k]) <= 8)) rows.push(py);
           }
-          resolve(hits);
+          resolve(rows);
         };
         img.onerror = () => reject(new Error('截图解码失败'));
       });
     },
-    { color, x },
+    { color, x, band },
   );
 }
 
@@ -343,15 +352,22 @@ test('未来空白区真的被绘制：游标之右落笔的线在该列画出�
 
   // 渲染证明由水平线承担：它整列实色，像素判定可靠。趋势线逐列被抗锯齿混成中间色，
   // 「同色行数」会归零（第一轮就因此误判过），故下面只钉它的落点数据。
-  const hits = await columnHits(page, color, 700); // x=700：游标（x=500）之右的未来区
-  expect(hits, `未来空白区应渲染出这条 ${color} 的线`).toBeGreaterThan(0);
+  // 采样必须夹带：默认画线色 `#ef5350` 与主题跌色同值，而最新价虚线横贯整幅主图
+  // （`drawAxes.ts:184-195`），不夹带时那条常驻虚线会把「移除后归零」打成间歇红——
+  // 探针实测画线之前列 700 就已有 1 行同色（y≈113~116，随行情漂移）。
+  // 带取落笔 y=320 上下 2px：带内非空 = 线真画出来了，带内归零 = 线真被移除。
+  const band: [number, number] = [318, 322];
+  const hits = await columnRows(page, color, 700, band); // x=700：游标（x=500）之右的未来区
+  expect(hits.length, `未来空白区应在落笔行渲染出这条 ${color} 的线（带 ${band}）`).toBeGreaterThan(0);
 
   await removeDrawing(page, s.drawings[0].id);
-  // 对照断言用 poll 而不是固定 sleep：`removeDrawing` 只改模型，重绘走 invalidate → rAF，
-  // 机器忙时 120ms 内那一帧还没跑，读到的仍是移除前的像素（实测整条水平线在该列剩 1 个命中，
-  // 正是「线还在」而非「画了一半」）。poll 等的是同一条不变量成立，断言强度不降。
+  // 对照断言用 poll：`removeDrawing` 只改模型，重绘走 invalidate → rAF，机器忙时那一帧可能还没跑。
+  // 等的是同一条不变量——落笔行所在带内无线色，断言强度不降。
   await expect
-    .poll(() => columnHits(page, color, 700), { message: '对照：移除后该列不该留有线色', timeout: 5_000 })
+    .poll(() => columnRows(page, color, 700, band).then((r) => r.length), {
+      message: '对照：移除后落笔行所在带不该留有线色',
+      timeout: 5_000,
+    })
     .toBe(0);
 
   await trendline(page, [640, 250], [760, 360]); // 两端都在游标之右

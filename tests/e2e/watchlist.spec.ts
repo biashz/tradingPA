@@ -65,6 +65,30 @@ async function stubFuturesSources(page: Page): Promise<void> {
   });
 }
 
+/**
+ * A股符号联想的固定桩（2026-10-16 用户裁决「现在打桩」）。
+ * 钉的是**候选集供料**这一层：非 crypto/futures 时 `registry.search` 直接返回
+ * `eastmoneySearch.search(...).catch(() => [])`，JSONP 端点不可达 ⇒ 空候选，
+ * 对话框没有本地兜底列表，用例等的是外网而不是应用行为。
+ * 切换后的 K 线与报价仍走真实源——那是整串 E2E 的共同前提，不在本条范围。
+ */
+const SUGGEST_ROWS: Record<string, Record<string, string>[]> = {
+  平安: [{ Code: '601318', Name: '中国平安', MktNum: '1', Classify: 'AStock', SecurityTypeName: '上证A股' }],
+  比亚迪: [{ Code: '002594', Name: '比亚迪', MktNum: '0', Classify: 'AStock', SecurityTypeName: '深证A股' }],
+};
+
+async function stubStockSuggest(page: Page): Promise<void> {
+  await page.route(/searchapi\.eastmoney\.com\/api\/suggest/, async (route) => {
+    const url = new URL(route.request().url());
+    const cb = url.searchParams.get('cb') ?? 'cb';
+    const data = SUGGEST_ROWS[url.searchParams.get('input') ?? ''] ?? [];
+    await route.fulfill({
+      contentType: 'application/javascript',
+      body: `${cb}({"QuotationCodeTable":{"Data":${JSON.stringify(data)}}})`,
+    });
+  });
+}
+
 /** 自选股面板：默认停靠、真实报价、涨跌幅 pill */
 test('自选股面板显示多市场实时报价', async ({ page }) => {
   await page.goto('/');
@@ -83,6 +107,7 @@ test('自选股面板显示多市场实时报价', async ({ page }) => {
 
 /** 符号搜索：/ 打开、回车切换图表品种 */
 test('符号搜索切换图表品种', async ({ page }) => {
+  await stubStockSuggest(page);
   await page.goto('/');
   await expect(page.getByText(/[1-9][0-9,]* 根/)).toBeVisible({ timeout: 20_000 });
 
@@ -102,6 +127,7 @@ test('符号搜索切换图表品种', async ({ page }) => {
 
 /** 符号搜索 add 模式：加入列表但不切换图表 */
 test('搜索弹窗加号模式只加入列表', async ({ page }) => {
+  await stubStockSuggest(page);
   await page.goto('/');
   await expect(page.getByText(/[1-9][0-9,]* 根/)).toBeVisible({ timeout: 20_000 });
 
