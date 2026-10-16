@@ -167,6 +167,19 @@ describe('drawCandles', () => {
 
 // ---------- drawAxes ----------
 
+/**
+ * 刻度条数由轴源自高推导（PriceScale.priceTickBudget，四期-C1a），故本文件不写死条数：
+ * 取「首个未被可见性过滤掉的刻度」作样本，钉的仍是标签文本与 x 位置，而非密度。
+ */
+function sampleTick(priceScale: PriceScale, h: number): number {
+  const drawn = priceScale.ticks().filter((t) => {
+    const y = priceScale.priceToY(t);
+    return y >= 10 && y <= h - 2;
+  });
+  expect(drawn.length).toBeGreaterThan(0);
+  return drawn[0];
+}
+
 describe('drawAxes', () => {
   it('drawPriceAxis：轴底色/轴线/右对齐刻度文本位置符合 TV 规格', () => {
     const { ctx, priceScale, geo } = fixture();
@@ -174,7 +187,7 @@ describe('drawAxes', () => {
     expect(hasCall(ctx, 'fillRect', [W, 0, AXIS_WIDTH, H])).toBe(true); // 轴背景
     expect(propSets(ctx, 'fillStyle')).toContain(theme.background);
     expect(hasPair(ctx, 'moveTo', [W + 0.5, 0], 'lineTo', [W + 0.5, H])).toBe(true);
-    const tick = priceScale.ticks(6)[0];
+    const tick = sampleTick(priceScale, H);
     expect(hasCall(ctx, 'fillText', [priceScale.toLabel(tick, 2), W + 58, priceScale.priceToY(tick)])).toBe(true);
     expect(propSets(ctx, 'textAlign')).toContain('right');
     expect(propSets(ctx, 'font')).toContain(`11px ${TV_FONT}`);
@@ -183,7 +196,7 @@ describe('drawAxes', () => {
   it('drawPriceAxis compact：刻度走 formatCompact', () => {
     const { ctx, priceScale, geo } = fixture();
     drawPriceAxis(asCtx(ctx), priceScale, 2, geo, true);
-    const tick = priceScale.ticks(6)[0];
+    const tick = sampleTick(priceScale, H);
     const compact = Math.abs(tick) >= 1e3 ? `${Number((tick / 1e3).toFixed(1))}K` : String(Number(tick.toFixed(2)));
     expect(hasCall(ctx, 'fillText', [compact, W + 58, priceScale.priceToY(tick)])).toBe(true);
   });
@@ -203,7 +216,7 @@ describe('drawAxes', () => {
     const { ctx, viewport, priceScale, geo } = fixture();
     drawGrid(asCtx(ctx), viewport, priceScale, geo);
     expect(propSets(ctx, 'strokeStyle')).toContain(theme.grid);
-    const tick = priceScale.ticks(6).find((t) => {
+    const tick = priceScale.ticks().find((t) => {
       const y = Math.round(priceScale.priceToY(t)) + 0.5;
       return y >= 0 && y <= H;
     })!;

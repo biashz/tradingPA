@@ -26,7 +26,7 @@ export function drawGrid(
   ctx.lineWidth = 1 / dpr;
   ctx.beginPath();
   if (mode !== 'vertical') {
-    for (const price of priceScale.ticks(6)) {
+    for (const price of priceScale.ticks()) {
       const y = align(priceScale.priceToY(price));
       if (y < 0 || y > geo.chartH) continue;
       ctx.moveTo(0, y);
@@ -89,8 +89,8 @@ export function drawPriceAxis(
   ctx.textAlign = pos === 'left' ? 'left' : 'right';
   ctx.textBaseline = 'middle';
   const textX = pos === 'left' ? axisX + AXIS_TEXT_BREATH : axisX + AXIS_TEXT_INSET;
-  // ticks(6) 的 6 是刻度条数（PriceScale 的 targetCount 默认值），与文字呼吸 6 不同义，勿合并
-  for (const price of priceScale.ticks(6)) {
+  // 刻度条数由轴源自高推导（priceTickBudget），与文字呼吸 6 无关
+  for (const price of priceScale.ticks()) {
     const y = priceScale.priceToY(price);
     if (y < 10 || y > geo.chartH - 2) continue;
     ctx.fillText(compact ? formatCompact(price) : priceScale.toLabel(price, decimals), textX, y);
