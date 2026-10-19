@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-import { fontSize, icon, radius, shadow, space, zIndex } from './tokens';
+import { fontSize, fontWeight, icon, radius, shadow, space, zIndex } from './tokens';
 import { inRange, monthMatrix, parseDateStr, toDateStr } from './calendar';
 
 /** TV 式日期选择器：输入态按钮 + 日历弹层（不依赖浏览器原生 date picker——
@@ -114,7 +114,7 @@ export function DatePicker({ value, onChange, min, max, ariaLabel = '选择日�
                     opacity: c.inMonth ? 1 : 0.35,
                     background: isSelected ? 'var(--accent)' : 'transparent',
                     color: isSelected ? 'var(--text-on-accent)' : 'var(--text)',
-                    fontWeight: isToday && !isSelected ? 600 : 400,
+                    fontWeight: isToday && !isSelected ? fontWeight.emphasis : fontWeight.body,
                     cursor: disabled ? 'default' : 'pointer',
                   }}
                   aria-label={s}
@@ -174,7 +174,11 @@ const navBtnStyle: React.CSSProperties = {
   display: 'flex',
 };
 
-const monthLabelStyle: React.CSSProperties = { color: 'var(--text)', fontSize: fontSize.md, fontWeight: 600 };
+const monthLabelStyle: React.CSSProperties = {
+  color: 'var(--text)',
+  fontSize: fontSize.md,
+  fontWeight: fontWeight.emphasis,
+};
 
 const gridStyle: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(7, 30px)', gap: 2 };
 

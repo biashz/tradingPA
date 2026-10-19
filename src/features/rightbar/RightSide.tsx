@@ -8,7 +8,7 @@ import { WatchlistPanel } from '@/features/watchlist/WatchlistPanel';
 import { ObjectTree } from '@/features/drawings/ObjectTree';
 import { AlertPanel } from '@/features/alerts/AlertPanel';
 import { DataWindowPanel } from '@/features/datawindow/DataWindowPanel';
-import { icon, zIndex } from '@/ui/tokens';
+import { fontWeight, icon, zIndex } from '@/ui/tokens';
 
 /** 右侧图标轨的条目。顺序对齐 TradingView：自选股在最上。 */
 const RAIL: { id: RightPanelId; label: string; icon: typeof List }[] = [
@@ -166,6 +166,6 @@ const badgeStyle: React.CSSProperties = {
   color: 'var(--on-updown)',
   fontSize: 9,
   lineHeight: '13px',
-  fontWeight: 600,
+  fontWeight: fontWeight.emphasis,
   textAlign: 'center',
 };

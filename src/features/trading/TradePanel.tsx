@@ -6,7 +6,7 @@ import { Modal, Tab, TabList } from '@/ui/primitives';
 import * as Tabs from '@radix-ui/react-tabs';
 import { OrderDialog } from './OrderDialog';
 import { ORDER_TYPE_LABELS } from './orderLabels';
-import { icon, radius } from '@/ui/tokens';
+import { fontWeight, icon, radius } from '@/ui/tokens';
 
 const fmtQty = (q: number) => String(Number(q.toFixed(8)));
 
@@ -74,7 +74,7 @@ export function TradePanel({ price, time, onReport }: TradePanelProps) {
       )}
       {/* 头部：标题 + 权益 + 入口 */}
       <div style={headerStyle}>
-        <strong style={{ color: 'var(--text)', fontSize: 12 }}>回放交易面板</strong>
+        <strong style={{ color: 'var(--text)', fontSize: 12, fontWeight: fontWeight.emphasis }}>回放交易面板</strong>
         <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>
           权益 {engine.equity.toFixed(2)} · 浮动{' '}
           <b style={{ color: pnlColor(engine.unrealizedPnL) }}>

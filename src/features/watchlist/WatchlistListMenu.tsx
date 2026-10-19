@@ -1,7 +1,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Check, ChevronDown, Plus } from 'lucide-react';
 import type { Watchlist } from '@/store/watchlistStore';
-import { control, fontSize, icon, radius, space } from '@/ui/tokens';
+import { control, fontSize, fontWeight, icon, radius, space } from '@/ui/tokens';
 import { leadingIconSlot, menuItemStyle, menuStyle, sepStyle } from './watchlistShared';
 
 interface WatchlistListMenuProps {
@@ -66,6 +66,6 @@ const listTriggerStyle: React.CSSProperties = {
   border: 'none',
   borderRadius: radius.sm,
   fontSize: fontSize.lg,
-  fontWeight: 600,
+  fontWeight: fontWeight.emphasis,
   cursor: 'pointer',
 };

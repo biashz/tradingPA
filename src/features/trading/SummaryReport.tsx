@@ -1,6 +1,6 @@
 import { useTradeStore } from './tradeStore';
 import { Modal } from '@/ui/primitives';
-import { radius } from '@/ui/tokens';
+import { fontWeight, radius } from '@/ui/tokens';
 
 const fmtQty = (q: number) => String(Number(q.toFixed(8)));
 
@@ -100,7 +100,7 @@ function Stat({ label, value, color, hint }: { label: string; value: string; col
   return (
     <div style={{ background: 'var(--bg)', borderRadius: radius.md, padding: '6px 10px' }}>
       <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: color ?? 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 14, fontWeight: fontWeight.emphasis, color: color ?? 'var(--text)' }}>{value}</div>
       {hint && <div style={{ fontSize: 9, color: 'var(--text-faint)' }}>{hint}</div>}
     </div>
   );
@@ -123,7 +123,7 @@ const thStyle: React.CSSProperties = {
   textAlign: 'left',
   padding: '4px 8px',
   borderBottom: '1px solid var(--border)',
-  fontWeight: 400,
+  fontWeight: fontWeight.body,
 };
 
 const tdStyle: React.CSSProperties = {

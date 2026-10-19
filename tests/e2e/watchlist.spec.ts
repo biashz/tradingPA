@@ -253,3 +253,49 @@ test('拖拽调整面板宽度', async ({ page }) => {
   const stored = await page.evaluate(() => Number(localStorage.getItem('tradingpa.rightdock.width')));
   expect(stored).toBeGreaterThanOrEqual(360);
 });
+
+/** WCAG 2.1 相对亮度对比度（仅供下面的令牌用例用；令牌值均为 #rrggbb 字面量） */
+function contrast(fg: string, bg: string): number {
+  const lum = (h: string): number => {
+    const m = /^#([0-9a-f]{6})$/i.exec(h);
+    if (!m) throw new Error(`令牌值应为 #rrggbb 字面量，实得：${h}`);
+    const rgb = [0, 2, 4].map((i) => parseInt(m[1].slice(i, i + 2), 16) / 255);
+    const lin = rgb.map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  };
+  const [a, b] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+  return (a + 0.05) / (b + 0.05);
+}
+
+/**
+ * 主题令牌的「平盘色块」配对（四期-C5a）。
+ * 钉两件事：① 浅色 `--elevated` 不再与 `--border` 同值（审计行「层次弱」）；
+ * ② 每个主题的 `--on-elevated` 压在同主题 `--elevated` 上对比度 ≥ 4.5（AA 小字），
+ *    且浅色侧必须与 `--on-updown` 分道——修复前浅色平盘 chip 用白字压 #e0e3eb 实测 1.28:1。
+ * 深色侧额外钉「与修复前逐字相同」（`--on-elevated` == `--on-updown` == #ffffff）⇒ 深色零视觉变化。
+ */
+test('深浅主题下 elevated 底色与前景色成对可读', async ({ page }) => {
+  await page.goto('/');
+  const read = () =>
+    page.evaluate(() => {
+      const s = getComputedStyle(document.body);
+      const get = (k: string) => s.getPropertyValue(k).trim();
+      return {
+        elevated: get('--elevated'),
+        onElevated: get('--on-elevated'),
+        border: get('--border'),
+        onUpdown: get('--on-updown'),
+      };
+    });
+
+  const dark = await read();
+  expect(dark.onElevated).toBe('#ffffff');
+  expect(dark.onElevated).toBe(dark.onUpdown);
+  expect(contrast(dark.onElevated, dark.elevated)).toBeGreaterThanOrEqual(4.5);
+
+  await page.getByRole('button', { name: '切换到浅色' }).click();
+  const light = await read();
+  expect(light.elevated).not.toBe(light.border);
+  expect(light.onElevated).not.toBe(light.onUpdown);
+  expect(contrast(light.onElevated, light.elevated)).toBeGreaterThanOrEqual(4.5);
+});

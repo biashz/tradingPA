@@ -3,7 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronUp, Play, Save, Plus, X } from 'luci
 import { usePineStore, DRAFT_ID } from '@/store/pineStore';
 import { usePineRuntimeError } from './usePineRuntimeErrors';
 import { ToolbarSelect } from '@/ui/ToolbarSelect';
-import { fontSize, icon, radius, space } from '@/ui/tokens';
+import { fontSize, fontWeight, icon, radius, space } from '@/ui/tokens';
 
 /**
  * Pine v5 子集边界（三期-D3①）。每条均为编译器实测：命中即报错并给出行号，不存在静默忽略。
@@ -60,7 +60,9 @@ export function PineEditorPanel() {
           flexShrink: 0,
         }}
       >
-        <span style={{ color: 'var(--text)', fontSize: fontSize.md, fontWeight: 600 }}>Pine 编辑器</span>
+        <span style={{ color: 'var(--text)', fontSize: fontSize.md, fontWeight: fontWeight.emphasis }}>
+          Pine 编辑器
+        </span>
         <span style={badgeStyle} title={subsetTooltip} aria-label="Pine v5 子集边界说明">
           Pine v5 子集
         </span>

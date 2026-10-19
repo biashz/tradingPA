@@ -5,7 +5,7 @@ import type { DataWindowDrawing, DataWindowSnapshot, DataWindowStudy } from '@/e
 import { useChartConfigStore } from '@/store/chartConfigStore';
 import { tzDate } from '@/engine/renderer/drawAxes';
 import { formatCompact, formatPrice } from '@/data/format';
-import { radius } from '@/ui/tokens';
+import { fontWeight, radius } from '@/ui/tokens';
 
 interface DataWindowPanelProps {
   renderer: ChartRenderer | null;
@@ -37,10 +37,10 @@ export function DataWindowPanel({ renderer, decimals, onClose }: DataWindowPanel
   return (
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <strong style={{ color: 'var(--text)', fontSize: 12 }}>
+        <strong style={{ color: 'var(--text)', fontSize: 12, fontWeight: fontWeight.emphasis }}>
           数据窗口
           {snap?.fromCrosshair === false && (
-            <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}> · 跟随最新</span>
+            <span style={{ color: 'var(--text-faint)', fontWeight: fontWeight.body }}> · 跟随最新</span>
           )}
         </strong>
         <button style={closeBtn} onClick={onClose} aria-label="关闭数据窗口" title="关闭">

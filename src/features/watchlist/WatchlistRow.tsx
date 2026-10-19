@@ -12,8 +12,8 @@ import {
   formatSigned,
 } from '@/data/format';
 import type { ColumnId } from '@/store/watchlistStore';
-import { COLUMN_WIDTH, QUOTE_FIELD } from './watchlistShared';
-import { fontSize, icon, radius, space } from '@/ui/tokens';
+import { COLUMN_WIDTH, QUOTE_FIELD, pctChipColors } from './watchlistShared';
+import { fontSize, fontWeight, icon, radius, space } from '@/ui/tokens';
 
 const ROW_H = 44;
 
@@ -110,7 +110,7 @@ export function WatchlistRow({
           <div
             style={{
               fontSize: fontSize.lg,
-              fontWeight: 600,
+              fontWeight: fontWeight.emphasis,
               color: 'var(--text)',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
@@ -167,9 +167,9 @@ function Cell({ col, quote, decimals }: { col: ColumnId; quote?: Quote; decimals
   const value = quote ? (quote[QUOTE_FIELD[col]] as number) : undefined;
   const width = COLUMN_WIDTH[col];
 
-  // 涨跌幅是这块面板的视觉主角：实心色块 + 白字，整列看下来就是当日涨跌的条形图
+  // 涨跌幅是这块面板的视觉主角：实心色块 + 反色字，整列看下来就是当日涨跌的条形图
   if (col === 'changePct') {
-    const dir = directionOf(value ?? 0);
+    const chip = pctChipColors(directionOf(value ?? 0), Boolean(quote));
     return (
       <span style={{ width, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
         <span
@@ -179,15 +179,9 @@ function Cell({ col, quote, decimals }: { col: ColumnId; quote?: Quote; decimals
             padding: '2px 5px',
             borderRadius: radius.xs,
             fontSize: fontSize.sm,
-            fontWeight: 500,
-            color: quote ? 'var(--on-updown)' : 'var(--text-faint)',
-            background: quote
-              ? dir === 'up'
-                ? 'var(--up)'
-                : dir === 'down'
-                  ? 'var(--down)'
-                  : 'var(--elevated)'
-              : 'transparent',
+            fontWeight: fontWeight.emphasis,
+            color: chip.color,
+            background: chip.background,
           }}
         >
           {quote ? formatPct(value ?? 0) : '—'}
@@ -253,7 +247,7 @@ function PriceCell({
         flexShrink: 0,
         textAlign: 'right',
         fontSize: fontSize.md,
-        fontWeight: strong ? 500 : 400,
+        fontWeight: strong ? fontWeight.emphasis : fontWeight.body,
         color,
         borderRadius: 2,
       }}

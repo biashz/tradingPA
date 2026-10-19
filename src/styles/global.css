@@ -111,6 +111,8 @@ body.theme-dark {
   --buy: #2962ff;
   --sell: #f23645;
   --elevated: #363a45;
+  /* elevated 表面的前景色：与 --elevated 成对取值，浅色主题的 elevated 是浅灰，白字压不住 */
+  --on-elevated: #ffffff;
   --on-updown: #ffffff;
   --tooltip-bg: #363a45;
   --tooltip-text: #d1d4dc;
@@ -138,7 +140,11 @@ body.theme-light {
   /* 交易色：买卖按钮语义（TV 买=蓝 / 卖=红），与涨跌色各司其职 */
   --buy: #2962ff;
   --sell: #f23645;
-  --elevated: #e0e3eb;
+  /* elevated 与 --border 同值时，平盘色块与其外框分不开 ⇒ 下移一档到 #d5dae6（层次项）。
+     前景色同批分化：改前平盘 chip 是 #ffffff on #e0e3eb = 1.28:1（实测，WCAG 判不可读），
+     深色主题走同一段代码是 11.36:1 ⇒ 浅色必须换深字，#131722 on #d5dae6 = 12.78:1。 */
+  --elevated: #d5dae6;
+  --on-elevated: #131722;
   --on-updown: #ffffff;
   --tooltip-bg: #2a2e39;
   --tooltip-text: #ffffff;

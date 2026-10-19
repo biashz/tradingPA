@@ -23,7 +23,7 @@ import { PineConditionSection } from './PineConditionSection';
 import { currentHlines, subscribeDrawings } from './useAlertWatcher';
 import { ToolbarSelect, type ToolbarOption } from '@/ui/ToolbarSelect';
 import { btnStyle, inputStyle, miniBtn, panelStyle, rowStyle } from './ui';
-import { icon } from '@/ui/tokens';
+import { fontWeight, icon } from '@/ui/tokens';
 
 interface AlertPanelProps {
   symbol: string;
@@ -104,7 +104,16 @@ export function AlertPanel({ symbol, currentPrice }: AlertPanelProps) {
   return (
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <strong style={{ color: 'var(--text)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <strong
+          style={{
+            color: 'var(--text)',
+            fontSize: 12,
+            fontWeight: fontWeight.emphasis,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
           <Bell size={icon.md} /> 警报
         </strong>
         <span style={{ color: 'var(--text-faint)', fontSize: 10 }}>

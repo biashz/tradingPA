@@ -3,7 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import * as Tabs from '@radix-ui/react-tabs';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { X } from 'lucide-react';
-import { control, fontSize, icon, radius, shadow, space, zIndex } from './tokens';
+import { control, fontSize, fontWeight, icon, radius, shadow, space, zIndex } from './tokens';
 
 /** Radix 原语的 TradingView 风格封装：可访问性（焦点陷阱/Esc/ARIA/键盘导航）由 Radix 提供，
  *  视觉由这里统一收拢。颜色全部走 CSS 变量，自动适配深浅主题。 */
@@ -221,7 +221,7 @@ const dialogHeaderStyle: React.CSSProperties = {
   flexShrink: 0,
 };
 
-const dialogTitleStyle: React.CSSProperties = { color: 'var(--text)', fontSize: 16, fontWeight: 600 };
+const dialogTitleStyle: React.CSSProperties = { color: 'var(--text)', fontSize: 16, fontWeight: fontWeight.emphasis };
 
 const dialogCloseStyle: React.CSSProperties = {
   display: 'flex',

@@ -41,7 +41,7 @@ import { ToolbarSelect, type ToolbarOption } from '@/ui/ToolbarSelect';
 import { decimalsFor } from '@/data/format';
 import { isFeedBusy } from '@/data/feed/types';
 import { useNarrowViewport } from '@/hooks/useViewport';
-import { fontSize, icon, radius, space, zIndex } from '@/ui/tokens';
+import { fontSize, fontWeight, icon, radius, space, zIndex } from '@/ui/tokens';
 
 /**
  * 顶栏（P2-C 自 App.tsx 拆出）：品种 / 周期 / 图表类型 / 回放入口 / 指标 / 布局存取 /
@@ -144,14 +144,16 @@ function SymbolButton({ instrument, compact }: { instrument: Instrument | null; 
       aria-label={`当前品种 ${instrument.symbol} ${instrument.name}，点击搜索其他品种`}
     >
       <span style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontSize: fontSize.xl, fontWeight: 700, color: 'var(--text)' }}>{instrument.symbol}</span>
+        <span style={{ fontSize: fontSize.xl, fontWeight: fontWeight.brand, color: 'var(--text)' }}>
+          {instrument.symbol}
+        </span>
         {!compact && (
           <span style={{ fontSize: fontSize.sm, color: 'var(--text-faint)' }}>
             {instrument.name} · {MARKETS[instrument.market].label}
           </span>
         )}
         {quote && !compact && (
-          <span style={{ fontSize: fontSize.md, color: dir, fontWeight: 600 }}>
+          <span style={{ fontSize: fontSize.md, color: dir, fontWeight: fontWeight.emphasis }}>
             {quote.price.toFixed(decimalsFor(quote.price, instrument.decimals))}
           </span>
         )}
@@ -224,7 +226,11 @@ export function TopBar({
 
   return (
     <div style={topBarStyle}>
-      {!narrow && <strong style={{ color: 'var(--text)', fontSize: 13, marginRight: 4 }}>TradingPA</strong>}
+      {!narrow && (
+        <strong style={{ color: 'var(--text)', fontSize: 13, fontWeight: fontWeight.brand, marginRight: 4 }}>
+          TradingPA
+        </strong>
+      )}
       <SymbolButton instrument={activeInstrument} compact={narrow} />
       {layout === 1 && !narrow && <CompareButton />}
       {layout === 1 && (

@@ -1,5 +1,6 @@
 import type { ColumnId } from '@/store/watchlistStore';
 import type { Quote } from '@/data/sources/types';
+import type { Direction } from '@/data/format';
 import { fontSize, radius, shadow, space, zIndex } from '@/ui/tokens';
 
 /** 列 → Quote 字段。代码/名称列不走报价。 */
@@ -28,6 +29,16 @@ export const COLUMN_WIDTH: Record<ColumnId, number> = {
 };
 
 // ---------- 样式（颜色全部 CSS 变量 token） ----------
+
+/** 涨跌幅 chip 的「底色 + 前景色」配对，单一来源：色块的字色不能在各调用点各写各的。
+ *  平盘档必须走 `--on-elevated` 而非 `--on-updown`——浅色主题的 `--elevated` 是浅灰，
+ *  白字压上去实测 1.28:1（四期-C5a 修复前）；成对取令牌才不会主题盲。 */
+export function pctChipColors(dir: Direction, hasQuote: boolean): { color: string; background: string } {
+  if (!hasQuote) return { color: 'var(--text-faint)', background: 'transparent' };
+  if (dir === 'up') return { color: 'var(--on-updown)', background: 'var(--up)' };
+  if (dir === 'down') return { color: 'var(--on-updown)', background: 'var(--down)' };
+  return { color: 'var(--on-elevated)', background: 'var(--elevated)' };
+}
 
 export const iconBtnStyle: React.CSSProperties = {
   display: 'flex',

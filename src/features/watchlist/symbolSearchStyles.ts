@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { fontSize, radius, shadow, space, zIndex } from '@/ui/tokens';
+import { fontSize, fontWeight, radius, shadow, space, zIndex } from '@/ui/tokens';
 
 // ---------- 样式（自 SymbolSearchDialog 拆出，颜色全部走 CSS 变量 token） ----------
 
@@ -47,7 +47,7 @@ export const inputStyle: CSSProperties = {
   outline: 'none',
   color: 'var(--text)',
   fontSize: 19,
-  fontWeight: 400,
+  fontWeight: fontWeight.body,
 };
 
 export const clearBtnStyle: CSSProperties = {

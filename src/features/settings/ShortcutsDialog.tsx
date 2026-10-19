@@ -1,6 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog';
 import { DialogHeader } from '@/ui/primitives';
-import { fontSize, radius, shadow, space, zIndex } from '@/ui/tokens';
+import { fontSize, fontWeight, radius, shadow, space, zIndex } from '@/ui/tokens';
 
 /** 快捷键分组：只收录本项目已实现的快捷键（与 useTvShortcuts / DrawingToolbar 实际绑定一致） */
 const GROUPS: Array<{ title: string; items: Array<[string, string]> }> = [
@@ -129,7 +129,7 @@ const groupTitleStyle: React.CSSProperties = {
   margin: `0 0 ${space.xs}px`,
   color: 'var(--text-faint)',
   fontSize: fontSize.sm,
-  fontWeight: 600,
+  fontWeight: fontWeight.emphasis,
 };
 
 const rowStyle: React.CSSProperties = {

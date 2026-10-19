@@ -18,7 +18,7 @@ import {
 import type { Drawing } from '@/engine/drawing/types';
 import type { ChartRenderer } from '@/engine/renderer/ChartRenderer';
 import { useDrawingStore } from '@/store/drawingStore';
-import { icon, radius } from '@/ui/tokens';
+import { fontWeight, icon, radius } from '@/ui/tokens';
 
 interface ObjectTreeProps {
   renderer: ChartRenderer | null;
@@ -45,10 +45,12 @@ export function ObjectTree({ renderer, onClose }: ObjectTreeProps) {
   return (
     <div style={panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <strong style={{ color: 'var(--text)', fontSize: 12 }}>
+        <strong style={{ color: 'var(--text)', fontSize: 12, fontWeight: fontWeight.emphasis }}>
           对象树（{drawings.length}）
           {selectedIds.length > 1 && (
-            <span style={{ color: 'var(--accent)', fontWeight: 400 }}>{` · 已选 ${selectedIds.length}`}</span>
+            <span
+              style={{ color: 'var(--accent)', fontWeight: fontWeight.body }}
+            >{` · 已选 ${selectedIds.length}`}</span>
           )}
         </strong>
         <div style={{ display: 'flex', gap: 6 }}>

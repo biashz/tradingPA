@@ -1,6 +1,6 @@
 import { MARKETS } from '@/types/instrument';
 import type { SearchHit } from '@/data/sources/types';
-import { fontSize, radius, space } from '@/ui/tokens';
+import { fontSize, fontWeight, radius, space } from '@/ui/tokens';
 import { badgeStyle } from './symbolSearchStyles';
 
 interface ResultRowProps {
@@ -43,7 +43,7 @@ export function ResultRow({ hit, query, selected, addMode, onHover, onChoose, ro
         <div
           style={{
             fontSize: fontSize.lg,
-            fontWeight: 600,
+            fontWeight: fontWeight.emphasis,
             color: 'var(--text)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',

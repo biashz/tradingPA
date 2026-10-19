@@ -3,7 +3,7 @@ import type { SearchHit } from '@/data/sources/types';
 import { dataRegistry } from '@/data/sources/registry';
 import { useChartConfigStore } from '@/store/chartConfigStore';
 import { Modal } from '@/ui/primitives';
-import { fontSize, radius, space } from '@/ui/tokens';
+import { fontSize, fontWeight, radius, space } from '@/ui/tokens';
 
 /**
  * 对比序列数据层（P2-D①，AC-D1）：
@@ -83,7 +83,7 @@ export function CompareSymbolPicker() {
             }}
             aria-label={`对比 ${hit.instrument.symbol}`}
           >
-            <span style={{ color: 'var(--text)', fontWeight: 600 }}>{hit.instrument.symbol}</span>
+            <span style={{ color: 'var(--text)', fontWeight: fontWeight.emphasis }}>{hit.instrument.symbol}</span>
             <span style={{ color: 'var(--text-faint)', marginLeft: space.sm }}>{hit.instrument.name}</span>
           </button>
         ))}
