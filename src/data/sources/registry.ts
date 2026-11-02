@@ -6,6 +6,7 @@ import { binanceSource, cryptoSearch } from './binance';
 import { sinaSource } from './sina';
 import { gateSource } from './gate';
 import { eastmoneySearch, futuresQuotes, futuresSearch, futuresUniverse } from './eastmoney';
+import { eastmoneyKlineSource } from './eastmoneyKline';
 import { NoHistoryError, type MarketSource, type Quote, type SearchHit } from './types';
 
 /**
@@ -30,8 +31,8 @@ const BARS_BY_MARKET: Record<MarketId, MarketSource[]> = {
   'cn-sh': [tencentSource],
   'cn-sz': [tencentSource],
   'cn-bj': [tencentSource],
-  // 港股只有日/周/月，分钟线暂无免费源（腾讯/新浪/东财均不提供）——唯一已知缺口
-  hk: [tencentSource],
+  // 港股日/周/月走腾讯；分钟线腾讯不供，回落东财 push2his（1m 当日+5 日 trends2，5/15/30/60m 约 23 日）
+  hk: [tencentSource, eastmoneyKlineSource],
   // 美股日线走腾讯，分钟线落新浪（script 标签 JSONP 直连，生产可用）
   'us-nasdaq': [tencentSource, sinaSource],
   'us-nyse': [tencentSource, sinaSource],
