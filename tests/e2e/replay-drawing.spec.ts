@@ -103,24 +103,6 @@ function removeDrawing(page: Page, id: string) {
   }, id);
 }
 
-/** 逐根揭示：index → bar（未来 bar 的 OHLC 只能这样公开地拿到；含游标当前根） */
-function revealForward(page: Page, from: number, to: number): Promise<RevealRow[]> {
-  return page.evaluate(
-    (r) => {
-      const c = (window as unknown as { __chartRenderer?: EngLike }).__chartRenderer;
-      if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
-      const out: RevealRow[] = [];
-      for (let i = r.from; i <= r.to; i++) {
-        c.setReplayIndex(i);
-        const bar = c.dataWindowSnapshot.bar;
-        if (bar) out.push({ index: i, bar });
-      }
-      return out;
-    },
-    { from, to },
-  );
-}
-
 /**
  * 画布某列上与 color 同色的像素**行号**（只用公开 `screenshot()`，不碰内部 canvas）。
  * `band` 是 CSS 逻辑像素的 y 夹带：默认画线色与主题跌色同为 `#ef5350`
@@ -196,13 +178,91 @@ const rowAtOrBefore = (table: RevealRow[], time: number) =>
   table.filter((r) => r.bar.time <= time).slice(-1)[0] ?? null;
 const inOhlc = (price: number, bar: EngBar) => [bar.open, bar.high, bar.low, bar.close].includes(price);
 
-/** 揭示到序列末所需的根数（+2：末根那行重复一次，保证表格末行就是末根） */
-function futureSpan(cursorTime: number, lastBarTime: number, iv: number): number {
-  const span = Math.ceil((lastBarTime - cursorTime) / iv) + 2;
-  expect(span, `揭示窗口须有界（cursorTime=${cursorTime} lastBarTime=${lastBarTime} iv=${iv}）`).toBeLessThanOrEqual(
-    2000,
-  );
-  return span;
+/**
+ * 序列相邻步长，口径与 `src/engine/drawing/coords.ts:54` 逐字相同（序列头部两根相减）。
+ * 不用「游标右侧相邻两根」：1 分序列每交易日断两次、周末再断一次，2026-10-19 探针实测同一批
+ * 801 根里 index 77/318/559 的间隔是 91 分、197/438 是 1110 分、679 是 3990 分——跨缺口那两根
+ * 相减会把步长放大几十倍，下面 `assertInFutureBand` 的上界与 `assertSubBarPrecision` 的 frac
+ * 量法会同时失去意义。
+ */
+async function seriesIv(page: Page): Promise<number> {
+  await parkMouse(page); // 悬停未清空时快照读的是 min(悬停 index, 回放游标)（dataWindow.ts:85-87），走表会停在悬停那根
+  return page.evaluate(() => {
+    const c = (window as unknown as { __chartRenderer?: EngLike }).__chartRenderer;
+    if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
+    const keep = c.replayIndex;
+    const at = (i: number): number => {
+      c.setReplayIndex(i);
+      return c.dataWindowSnapshot.bar?.time ?? 0;
+    };
+    const iv = at(1) - at(0);
+    c.setReplayIndex(keep);
+    return iv;
+  });
+}
+
+/**
+ * 从 `from` 起逐根揭示**到序列末为止**（含末根）。停止条件 = 读回的 bar.time 与上一行相同，
+ * 即 index 越界被 dataWindow 钳成「重复的最后一根」（钳位现状见 `rowAtOrBefore` 的注释）。
+ *
+ * 这里替掉的是旧 `futureSpan(cursorTime, lastBarTime, iv)`：它拿墙钟分钟差除以步长当**根数**，
+ * 而带缺口的序列两者不等。2026-10-19 全量 E2E 三条翻红的读数就是这条换算——游标落在周末缺口
+ * 左侧时，墙钟差算出 4023 根、而缺口右侧真实只剩 32 根（游标 768、全长 801），2000 的上界被冲穿；
+ * 上界没错，**错在单位**。
+ * 「窗口有界」改由末行是否走到末根来钉（下面那条 expect）。
+ *
+ * 走到末根这件事还揭掉第二层遮蔽：`dataWindow.ts:85-87` 读的是 `min(悬停 index, 回放游标)`，
+ * 鼠标还停在画布上时走表在悬停那一根就断掉。旧 `revealForward` 不判重复、静默把短表交出去，
+ * 所以三条用例一直拿着「以为到末根、实际到悬停根」的表格——本次先加末行判据，当场翻红三条，
+ * 读数 `Expected 1792382280000 / Received 1792379760000`（差 42 根）。三个走表 helper 因此统一先 `parkMouse`。
+ *
+ * 两条变异读数（先证落地再解读，2026-10-19 各跑整文件）：
+ * - **MUT-2 循环上限 5000 改 50** ⇒ 1 红 6 绿，红的正是尾表 122 根的新用例；旧三条此刻的尾
+ *   只有 ≈32 根，50 够不着。⇒ 末行判据的强度取决于游标之右真实剩多少根，别当成四条都钉住。
+ * - **MUT-3 只删本函数的 parkMouse** ⇒ 7 绿。调用序里 `seriesIv` 先清空了悬停，这条 park 是
+ *   防「日后有人在落笔之后直接走表」的前置条件，删掉不翻红；两处一起删才回到上面的三条红。
+ */
+async function revealToSeriesEnd(page: Page, from: number): Promise<RevealRow[]> {
+  await parkMouse(page); // 同 seriesIv：悬停未清空时快照读 min(悬停 index, 游标)，走表会停在悬停那根
+  const out = await page.evaluate((f) => {
+    const c = (window as unknown as { __chartRenderer?: EngLike }).__chartRenderer;
+    if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
+    const rows: RevealRow[] = [];
+    for (let i = f; i < f + 5000; i++) {
+      c.setReplayIndex(i);
+      const bar = c.dataWindowSnapshot.bar;
+      if (!bar) break;
+      if (rows.length > 0 && rows[rows.length - 1].bar.time === bar.time) break;
+      rows.push({ index: i, bar });
+    }
+    // 与循环同一个 JS 回合内读末根时间：中途不会有新 bar 插进来把对照打歪
+    return { rows, lastBarTime: c.lastBarTime };
+  }, from);
+  const last = out.rows[out.rows.length - 1];
+  expect(
+    last ? last.bar.time : -1,
+    `游标之右的揭示窗口须在循环上限内走到序列末（起 index=${from}、读到 ${out.rows.length} 行、末根 time=${out.lastBarTime}）`,
+  ).toBe(out.lastBarTime);
+  return out.rows;
+}
+
+/** 序列全长（index 0 → 末根）的 time 表；根数由此成为 `revealToSeriesEnd` 的另一条独立读路 */
+async function seriesTimes(page: Page): Promise<number[]> {
+  await parkMouse(page); // 同 revealToSeriesEnd：先清空悬停，否则走表停在悬停那一根
+  return page.evaluate(() => {
+    const c = (window as unknown as { __chartRenderer?: EngLike }).__chartRenderer;
+    if (!c) throw new Error('无 DEV 引擎句柄 window.__chartRenderer');
+    const keep = c.replayIndex;
+    const times: number[] = [];
+    for (let i = 0; i < 5000; i++) {
+      c.setReplayIndex(i);
+      const t = c.dataWindowSnapshot.bar?.time;
+      if (t === undefined || (times.length > 0 && times[times.length - 1] === t)) break;
+      times.push(t);
+    }
+    c.setReplayIndex(keep);
+    return times;
+  });
 }
 
 /**
@@ -210,7 +270,7 @@ function futureSpan(cursorTime: number, lastBarTime: number, iv: number): number
  * 替掉的是旧判据 `covers(table, time)`——它假设表格盖得到锚点，而 `coords.ts:43-51` 在
  * `roundIdx` 恰为末根时给的是「末根 time + 小数×iv」，锚点**合法地**越过末根，于是 `covers`
  * 红得与画线行为无关（2026-10-16 `--repeat-each=3/4` 各抓到一次，读数同点）。
- * 「末行冒充命中」这个旧 `covers` 想防的洞改由两处一起堵：表格按 `futureSpan` 揭示到末根，
+ * 「末行冒充命中」这个旧 `covers` 想防的洞改由两处一起堵：表格由 `revealToSeriesEnd` 走到末根，
  * 加上这里带上界。
  */
 function assertInFutureBand(
@@ -248,12 +308,13 @@ async function sampleFree(page: Page, x: number, y: number): Promise<FlatDrawing
  * 而空点图表也不移动游标（那要先把回放工具装上）——旧版拿相隔 100px 的两次空点反推 barW，
  * 两次都读回同一个游标根（767），标定当场失败。
  *
- * 采样改用只依赖表格 `iv` 的量：frac = ((time − t0)/iv) 的小数部分。小数精度为真 ⇒ 必有采样
- * 落在两根 bar 之间（frac ≠ 0）；量成 bar 网格 ⇒ 每个 frac 恒为 0。全程不碰像素几何，
- * 所以可视区宽窄、此刻加载了多少根都翻不了它的脸。
+ * 采样改用只依赖序列步长 `iv`（调用方经 `seriesIv` 按引擎口径取）的量：frac = ((time − t0)/iv)
+ * 的小数部分。小数精度为真 ⇒ 必有采样落在两根 bar 之间（frac ≠ 0）；量成 bar 网格 ⇒ 每个 frac
+ * 恒为 0。全程不碰像素几何，所以可视区宽窄、此刻加载了多少根都翻不了它的脸。
+ * 收盘缺口也不翻它的脸：缺口长度（91/1110/3990 分）都是 iv 的整数倍，跨缺口的整根 bar 仍算得 frac 0。
  *
  * 三处会被现状翻脸的地方，都在这儿处理：
- * 1) **复位**：`revealForward` 把游标推到 +240 且可视区跟着滚，复位前 x=620 早已越过序列末，
+ * 1) **复位**：建表时游标已被推到序列末、可视区跟着滚，复位前 x=620 早已越过序列末，
  *    每个落点都钳到最后一根（实测 10 次得到同一个 1792134000000，2026-10-16 全量 E2E 首现翻红即此）；
  * 2) **钳位样本另计**：钳位的 frac 也归 0，与「量成网格」同形，故用公开 `lastBarTime` 挑出来，
  *    只在序列内样本里找 frac；整批皆钳位则带全部读数失败。「越过序列末钳到最后一根」本身
@@ -262,8 +323,7 @@ async function sampleFree(page: Page, x: number, y: number): Promise<FlatDrawing
  *    故 `future` 用复位后重读的 `cursorBarTime` 判，不看像素。
  * 每条采样画完即删（`sampleFree`）：水平线横贯整个宽度，同 y 的第二次落笔会命中上一根线。
  */
-async function assertSubBarPrecision(page: Page, table: RevealRow[], restoreTo: number, y: number) {
-  const iv = table[1].bar.time - table[0].bar.time;
+async function assertSubBarPrecision(page: Page, table: RevealRow[], restoreTo: number, y: number, iv: number) {
   const t0 = table[0].bar.time;
   await setCursor(page, restoreTo);
   await parkMouse(page); // 复位游标 + 清空悬停：这样 cursorBarTime 读到的才是游标根，而不是上一动作留下的悬停根
@@ -326,21 +386,17 @@ test('回放中画线不限左右：游标之右的锚点落在未揭示的未�
   expect(s.drawings[0].time).toBeLessThan(cursorTime);
   expect(s.drawings[1].time).toBeGreaterThan(cursorTime);
 
-  // 揭示窗口按读数给到序列末（探针实测游标 768 时距末根 ≈105 根，写死 240 只是够长；
-  // 真正会翻脸的是判据 `covers`，改法见 assertInFutureBand 的注释）
-  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
-  const table = await revealForward(
-    page,
-    cursorIndex + 1,
-    cursorIndex + futureSpan(cursorTime, start.lastBarTime, iv0),
-  );
-  assertInFutureBand(s.drawings[1].time, { cursorTime, lastBarTime: start.lastBarTime, iv: iv0 }, '右锚点');
+  // 揭示窗口按「游标之右还剩多少根」给：起点在游标右侧第一根，终点由序列末的钳位决定
+  // （旧算法拿墙钟差换算根数，缺口会把窗口算穿——见 revealToSeriesEnd 的注释）
+  const iv = await seriesIv(page);
+  const table = await revealToSeriesEnd(page, cursorIndex + 1);
+  assertInFutureBand(s.drawings[1].time, { cursorTime, lastBarTime: start.lastBarTime, iv }, '右锚点');
   const future = rowAtOrBefore(table, s.drawings[1].time);
   expect(future, '右锚点应落在游标之右的某根未来 bar 上').not.toBeNull();
   expect(future!.index).toBeGreaterThan(cursorIndex);
   // 磁吸关时落点带半根 bar 的小数精度（`coords.ts` 的 `magnet === 'off'` 分支）——
   // 这条必须钉住，否则日后改成对齐 bar 会无人察觉；量法见 assertSubBarPrecision
-  await assertSubBarPrecision(page, table, cursorIndex, 360);
+  await assertSubBarPrecision(page, table, cursorIndex, 360, iv);
 
   // 锚点是 time 制：把游标推到锚点左侧那根，线不跟着走
   const before = s.drawings[1];
@@ -371,9 +427,9 @@ test('磁吸开：在游标之右画线会吸附到那根未揭示 bar 的 OHLC�
   const magnetLine = (await read(page)).drawings.slice(-1)[0];
   // 表格含游标当前根：磁吸关的对照落点可能就在「游标根 ↔ 下一根」之间，
   // 从 +1 起建表会让 rowAtOrBefore 读空（2026-10-16 翻红即此，与精度无关）
-  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
-  const band = { cursorTime, lastBarTime: start.lastBarTime, iv: iv0 };
-  const table = await revealForward(page, cursorIndex, cursorIndex + futureSpan(cursorTime, start.lastBarTime, iv0));
+  const iv = await seriesIv(page);
+  const band = { cursorTime, lastBarTime: start.lastBarTime, iv };
+  const table = await revealToSeriesEnd(page, cursorIndex);
   assertInFutureBand(magnetLine.time, band, '磁吸锚点');
   const magnetBar = rowAtOrBefore(table, magnetLine.time);
   expect(magnetBar, '磁吸落点应锚在未来 bar 上').not.toBeNull();
@@ -390,7 +446,7 @@ test('磁吸开：在游标之右画线会吸附到那根未揭示 bar 的 OHLC�
   await page.getByRole('button', { name: '磁吸', exact: true }).click();
   expect(await page.getByRole('button', { name: '磁吸', exact: true }).getAttribute('aria-pressed')).toBe('false');
 
-  const plainLine = await assertSubBarPrecision(page, table, cursorIndex, 400);
+  const plainLine = await assertSubBarPrecision(page, table, cursorIndex, 400, iv);
   expect(plainLine.id).not.toBe(magnetLine.id);
   assertInFutureBand(plainLine.time, band, '磁吸关的对照落点');
   const plainBar = rowAtOrBefore(table, plainLine.time);
@@ -500,11 +556,76 @@ test('未来空白区真的被绘制：游标之右落笔的线在该列画出�
   // 首锚点须是「游标之右、序列末 +1 根」带内的某根真实未来 bar。
   // 旧判据 `covers(table, t.time)` 会红得与画线无关：表格按写死的根数建，而 x=640 落在第几根
   // 由此刻加载了多少根决定，落点还可能合法地越过末根一根（`coords.ts:43-51` 的小数项）——
-  // 2026-10-16 `--repeat-each=3/4` 各抓到一次同点翻红。改法见 futureSpan / assertInFutureBand。
-  const iv0 = await revealForward(page, cursorIndex + 1, cursorIndex + 3).then((r) => r[1].bar.time - r[0].bar.time);
-  assertInFutureBand(t.time, { cursorTime, lastBarTime, iv: iv0 }, '趋势线首锚');
-  const table = await revealForward(page, cursorIndex + 1, cursorIndex + futureSpan(cursorTime, lastBarTime, iv0));
+  // 2026-10-16 `--repeat-each=3/4` 各抓到一次同点翻红。改法见 revealToSeriesEnd / assertInFutureBand。
+  const iv = await seriesIv(page);
+  assertInFutureBand(t.time, { cursorTime, lastBarTime, iv }, '趋势线首锚');
+  const table = await revealToSeriesEnd(page, cursorIndex + 1);
   const first = rowAtOrBefore(table, t.time);
   expect(first, '首锚点应是未揭示的未来 bar').not.toBeNull();
   expect(first!.index).toBeGreaterThan(cursorIndex);
+});
+
+/**
+ * 揭示窗口的单位是**根**，不是墙钟分钟。
+ * 2026-10-19 全量 E2E 三条翻红的根因就在这儿：旧 `futureSpan` 用
+ * `(lastBarTime − cursorTime)/iv` 当根数，而默认标的（腾讯财经 1 分序列）每个交易日断两次、
+ * 周末再断一次。探针读数：同一批 801 根里 index 77/318/559 隔 91 分、197/438 隔 1110 分、
+ * 679 隔 3990 分；把游标摆到缺口左侧一根，本用例实测到的是**尾部表 122 根 vs 墙钟估算 4147 根**。
+ * 缺口右侧的根数永远小于墙钟换算，故这条用例把「按根数走到末根」钉住，缺口就是它的反例。
+ *
+ * 变异读数（先证落地再解读，2026-10-19）：
+ * - MUT-1 把 `estimated` 直接写成 `rows.length` ⇒ 该条翻红，文本「墙钟估算=122、真实=122、缺口=3990」。
+ * - MUT-6 只把比较方向翻过来 ⇒ 该条翻红，文本带出真实读数「墙钟估算=4147、真实=122」。
+ * - MUT-7b `seriesIv` 改从跨缺口那两根相减 ⇒ 该条翻红（缺口退化成 0.278 个步长）⇒ 「步长取序列头部」
+ *   这条口径在此有牙；对照 MUT-7（改取 index 799/798）读数 7 绿——那两根仍在同一交易段内，
+ *   是个**值不变的中性变异**，既不能当证据也不能当反证。
+ * - MUT-4/MUT-5 动 `expectedRows`：差 1 根 ⇒ 绿（±1 容差把它吞了，这是该对照的灵敏度上限）；
+ *   差 5 根 ⇒ 红「尾部表读到 122 根，全长表算出 118 根」。
+ * 覆盖边界：若供料降级为连续 mock 序列（无缺口），上面第一条 expect 当场翻红并带出状态条文本，
+ * 不会静默变成一条空对照。
+ */
+test('揭示窗口按游标之右的真实根数给（收盘缺口会让墙钟换算多算一个数量级）', async ({ page }) => {
+  await boot(page);
+  await enterReplay(page, 500, 300);
+  const start = await read(page);
+  const iv = await seriesIv(page);
+  const times = await seriesTimes(page);
+
+  // 在「右侧还留着至少两根 bar」的间隔里取最宽的一处非步长间隔 = 收盘/周末缺口。
+  // 不取最右那处：它通常是实时推送追加 bar 留下的小间隔（探针读数 21~32 分），右侧只剩一根，
+  // 尾部表会退化成一行，取证强度不够。
+  let gapIdx = -1;
+  let gapSteps = 0;
+  for (let i = 1; i < times.length; i++) {
+    const dt = times[i] - times[i - 1];
+    if (dt !== iv && times.length - i >= 2 && dt / iv > gapSteps) {
+      gapSteps = dt / iv;
+      gapIdx = i;
+    }
+  }
+  const status = await page.locator('text=/根 ·/').first().textContent();
+  expect(
+    gapIdx,
+    `序列里应有一处右侧留有 bar 的收盘缺口（供料若降级为连续 mock 序列，本用例的读数失去意义）。状态条：${status}`,
+  ).toBeGreaterThan(0);
+
+  // 把游标摆到缺口左侧一根——正是翻红那次的形状，与「此刻 x=500 落在第几根」无关
+  const cursorIndex = gapIdx - 1;
+  await setCursor(page, cursorIndex);
+  await parkMouse(page);
+  const rows = await revealToSeriesEnd(page, cursorIndex + 1);
+
+  // 两条独立走表（全长表从 0 起、尾部表从 cursorIndex+1 起）的根数须对得上；
+  // ±1 容差 = 两次 evaluate 之间可能追加一根实时 bar（墙钟换算的超出量是几千，不受这根影响）
+  const expectedRows = times.length - cursorIndex - 1;
+  expect(
+    Math.abs(rows.length - expectedRows),
+    `尾部表读到 ${rows.length} 根，全长表算出 ${expectedRows} 根（允许 ±1 根实时追加）`,
+  ).toBeLessThanOrEqual(1);
+
+  const estimated = Math.ceil((start.lastBarTime - times[cursorIndex]) / iv) + 2;
+  expect(
+    estimated - rows.length,
+    `墙钟估算=${estimated}、真实=${rows.length}、缺口=${gapSteps} 个步长：估算的超出量至少该覆盖这段缺口`,
+  ).toBeGreaterThanOrEqual(gapSteps - 2);
 });
